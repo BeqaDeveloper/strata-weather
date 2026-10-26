@@ -3,20 +3,53 @@
   "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
+    "@expo/vector-icons": "^15.0.2",
+    "@tanstack/react-query": "^5.105.0",
     "expo": "~58.0.19",
+    "expo-dev-client": "~58.0.15",
+    "expo-font": "~58.0.10",
     "expo-status-bar": "~58.0.4",
     "react": "19.3.0",
-    "react-native": "0.88.0"
+    "react-dom": "19.3.0",
+    "react-native": "0.88.0",
+    "react-native-safe-area-context": "~5.10.1",
+    "react-native-web": "^0.21.4",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/react": "~19.3.0",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "@testing-library/react-native": "14.1.0",
+    "eslint": "^9.39.5",
+    "prettier": "^3.8.3",
+    "jest": "~30.5.2",
+    "jest-expo": "~58.0.12",
+    "@types/jest": "30.0.0",
+    "eslint-config-expo": "~58.0.4"
   },
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
+    "lint": "expo lint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "jest --runInBand",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage --runInBand",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm run test:coverage",
+    "export:all": "expo export --platform all"
   },
-  "private": true
+  "private": true,
+  "description": "A modular React Native weather app with two interchangeable providers, accessible themes, and tested request lifecycles.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.13.0 <23"
+  },
+  "overrides": {
+    "@typescript-eslint/parser": "8.72.0",
+    "@typescript-eslint/eslint-plugin": "8.72.0"
+  }
 }

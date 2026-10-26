@@ -1,25 +1,29 @@
 {
   "expo": {
-    "name": "strata-weather",
+    "name": "Strata Weather",
     "slug": "strata-weather",
     "version": "1.0.0",
     "orientation": "portrait",
+    "description": "A little clarity, whatever the weather. Compare global forecasts from two weather services.",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
+      "bundleIdentifier": "com.beqadeveloper.strataweather",
       "supportsTablet": true
     },
     "android": {
+      "package": "com.beqadeveloper.strataweather",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#F5F2EB",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": true
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": ["expo-font"]
   }
 }
