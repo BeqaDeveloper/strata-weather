@@ -18,3 +18,5 @@ Verified on 26 October 2026 using Node 22.23.2 and npm 11.3.0 on Windows.
 The screenshots in `docs/screenshots/` show the web target with live data. No Android emulator, iOS simulator, signed binary, or physical-device run was available in this environment. Device verification remains a release step described in [testing](testing.md).
 
 The dependency audit is not clean: five package findings arise from two upstream tooling advisories, detailed in [SECURITY.md](../SECURITY.md). The audit is reported separately from the checks above.
+
+The public repository is published. GitHub Actions activation requires workflow permission missing from the available credentials. The exact workflow is included at `docs/ci.workflow.yml`, with activation instructions in [CI](ci.md).

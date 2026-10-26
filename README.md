@@ -36,7 +36,7 @@ npx expo run:ios
 - Current conditions, local forecast time, humidity, wind, available feels-like temperature, and upcoming forecast points.
 - Provider-specific colors and artwork through presentation descriptors.
 - Accessible controls, scalable text, safe areas, responsive layouts, and retry states.
-- Strict TypeScript, runtime API validation with Zod, ESLint, Prettier, unit tests, and GitHub Actions.
+- Strict TypeScript, runtime API validation with Zod, ESLint, Prettier, unit tests, and a ready-to-enable GitHub Actions workflow.
 - No application code comments; design decisions and extension instructions live in documentation.
 
 ## Quality checks
@@ -52,6 +52,8 @@ npm run export:all
 Known upstream tooling advisories and their dependency paths are documented in [SECURITY.md](SECURITY.md).
 
 The [verification record](docs/verification.md) lists the completed checks and platform limits.
+
+The [CI workflow](docs/ci.workflow.yml) runs these same checks on GitHub. Activation requires workflow write access, which the publishing credentials did not have; see [enabling CI](docs/ci.md).
 
 ## Structure
 
