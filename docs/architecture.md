@@ -16,6 +16,8 @@ Keep provider changes local, make asynchronous state predictable, preserve a cle
 
 `shared/ui` contains controls and visual tokens already reused across the experience. `shared/observability` contains the typed logging contract and sink adapters. Neither imports higher-level application, infrastructure, or presentation modules. Promote code to shared when it has independent meaning and actual reuse; do not move every small function there.
 
+`shared/theme` owns complete semantic appearance presets and session selection. It does not know which weather service is active. `features/assistant` is a separate local preview feature; it consumes shared themes and controls without importing concrete services or weather screens. App.tsx composes the feature beside the weather screen.
+
 `platform` bridges native app focus and connectivity to query lifecycle events. `bootstrap` assembles all concrete implementations, validates provider registration, creates a QueryClient, and owns the application error boundary. App.tsx creates one runtime per app session inside the recovery boundary. Tests create isolated runtimes or inject ports.
 
 ESLint's restricted-path zones enforce these dependency directions. TypeScript runs with strict checks, unchecked-index checks, explicit override checks, unused-code checks, and implicit-return checks.
@@ -54,7 +56,19 @@ Tests confirm that changing search input does not rerender the expensive scene a
 
 Memoization is selective. Simple text and controls are not wrapped reflexively. Forecast data is bounded to a few points. SVG artwork is deterministic and uses bounded paths and gradients with no animation loop or remote image fetch. The forecast trace follows real elapsed time rather than evenly distributing irregular intervals.
 
+The forecast trace and detailed readings share one horizontal scroll coordinate system. Reading centers and plotted points use the same elapsed-time positions with a minimum readable separation. Extreme spacing falls back to readings without a misleading or unbounded chart.
+
+## Appearance and local feature state
+
+ThemeProvider wraps the app session without keying or recreating its query runtime. Six light/dark presets supply semantic tokens for surfaces, text, controls, scenes, errors, and modal overlays. Provider accents stay independent. Adding a catalog entry extends the chooser and parameterized contrast checks; components do not branch on preset names. See [theming](theming.md).
+
+App-level integration tests verify that appearance changes preserve selected provider and location, keep service instances stable, and issue no extra weather requests. The status bar, recovery screen, inputs, appearance panel, and assistant all consume the selected theme. Theme selection is session-only.
+
+Sky is explicitly a coming-soon preview with authored local replies. Its normalized input limit is 200 Unicode code points, and its session transcript holds six complete exchanges. It has no model connection, persistence, prompt telemetry, or training pipeline. The widget is memoized independently from weather input. See [assistant preview](assistant-preview.md).
+
 Daylight is `boolean | null`. An unknown current or hourly value gets neutral artwork and wording. Missing feels-like temperature omits that metric. Accessibility labels expose forecast values even though decorative SVGs are hidden from assistive technology.
+
+Interactive state uses the ARIA aliases supported by React Native and React Native Web, including checked, expanded, busy, and disabled. Browser checks verify the rendered DOM state; native-only state assertions would not catch a web compatibility gap. Decorative icons are explicitly hidden from assistive technology.
 
 ## Error reporting and logging
 
@@ -85,6 +99,6 @@ Names should describe the thing they own: forecast geometry, query policy, locat
 
 ## Review and limits
 
-Two independent agent review passes covered architecture and privacy. The resulting fixes included centralized registration, malformed-cache eviction, unexpected-error classification, isolated reporting, offline pause recovery, daylight truthfulness, and render isolation. No human architect certification is implied.
+Independent agent review passes covered architecture, privacy, theme contrast, and UI state isolation. The resulting fixes included centralized registration, malformed-cache eviction, unexpected-error classification, isolated reporting, offline pause recovery, daylight truthfulness, render isolation, and a shared forecast time axis. No human architect certification is implied.
 
 Automated tests establish behavior and dependency boundaries. Platform exports establish compilation. Neither establishes screen-reader quality, native networking, signed distribution, battery use, or frame timing on physical hardware. Follow the device checklist before a store release.

@@ -5,6 +5,8 @@
 
 Strata lets you search for a city, choose the right location, and compare forecasts from **Open-Meteo** and **MET Norway**. Switching the source automatically updates the forecast for your selected place and changes the visual atmosphere. Both integrations work without API keys.
 
+Make it yours with **six light and dark themes**, or meet **Sky**, a playful coming-soon assistant with local scripted replies. Appearance, forecast source, and conversation state stay independent.
+
 The project is designed to be understood and extended: remote APIs stop at typed adapters, application logic depends on contracts, and the UI consumes one normalized weather model.
 
 <p align="center">
@@ -12,7 +14,7 @@ The project is designed to be understood and extended: remote APIs stop at typed
 <img src="docs/screenshots/met-norway.png" width="300" alt="The same selected place with MET Norway's glacier identity and provider-specific measurements" />
 </p>
 
-Screenshots show the mobile-width web target with live data. They are not native-device test evidence.
+Mobile-width web previews show Studio with Open-Meteo and Midnight with MET Norway using live data. They are not native-device test evidence.
 
 ## Start in a minute
 
@@ -48,6 +50,8 @@ Android and iOS are the primary targets. Browsers control the User-Agent header,
 - Retains and labels the last available report after a failed refresh.
 - Resumes paused native requests after reconnection and refreshes stale data on foreground return.
 - Provides accessible controls, scalable text, safe areas, and responsive layouts.
+- Offers six complete semantic appearance presets that work with either provider, including themed recovery and assistant screens.
+- Includes an honest local assistant preview with authored coming-soon replies, validated input, and a bounded session conversation.
 
 There is no silent provider fallback. The selected service remains identifiable, including when it fails. Unsupported measurements and unknown daylight are represented explicitly rather than guessed.
 
@@ -64,9 +68,11 @@ src/
     location/                   Geocoding adapter
     providers/                  Weather API decoders and unit normalization
   presentation/                 Weather experience, vector scene, forecast geometry
+  features/assistant/           Local coming-soon interaction and validated preview model
   platform/                     Native focus and connectivity integration
   shared/
     ui/                         Reused controls, notices, and visual tokens
+    theme/                      Semantic palettes, session selection, and themed styles
     observability/              Typed logger, privacy filtering, replaceable sink
 ```
 
@@ -88,6 +94,10 @@ Shared code has a specific purpose: `ActionButton`, `IconButton`, `StatusNotice`
 
 **Capabilities stay honest.** Feels-like and daylight can be absent. MET's missing measurements are not estimated just to fill the interface. The forecast trace uses the actual spacing between timestamps, including uneven forecast intervals.
 
+**Appearance is configuration.** Six palettes use shared semantic roles. Adding a preset extends the typed catalog and automatically adds a chooser option and contrast checks. Theme changes preserve service instances and the selected forecast. The forecast trace and its readings share one scrollable time axis.
+
+**The assistant is a preview.** Sky gives authored coming-soon replies. Messages are validated, retained only in a bounded session transcript, and never sent to a model or included in logs.
+
 Read [architecture and engineering](docs/architecture.md) for dependency rules, lifecycles, rendering decisions, logging integration, and extension examples.
 
 ## Verify the project
@@ -106,6 +116,8 @@ Independent agent architecture and privacy reviews informed this revision. Findi
 
 - [Architecture and engineering](docs/architecture.md) — boundaries, rendering, lifecycle, and observability.
 - [Provider integration](docs/providers.md) — add or replace an API, capabilities, caching, and attribution.
+- [Theming](docs/theming.md) — six presets, semantic roles, contrast checks, and adding an appearance.
+- [Assistant preview](docs/assistant-preview.md) — copy, validation, retention, privacy, and future integration boundaries.
 - [Testing](docs/testing.md) — commands, behaviors to preserve, and device checklist.
 - [Verification](docs/verification.md) — completed checks and known limits.
 - [CI setup](docs/ci.md) — the ready-to-enable workflow; kept as a template by the repository owner's choice.

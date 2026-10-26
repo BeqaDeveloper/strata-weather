@@ -1,7 +1,9 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
 import type * as ReactModule from 'react';
 import type * as ReactNativeModule from 'react-native';
 import { Alert, Linking } from 'react-native';
+import { ThemeProvider } from '../shared/theme/ThemeProvider';
+import { findTheme } from '../shared/theme/themes';
 
 import type { WeatherLocation, WeatherReport } from '../domain/weather';
 import { PROVIDER_PRESENTATIONS } from './providers';
@@ -72,6 +74,30 @@ function createProps(overrides: Partial<WeatherScreenProps> = {}): WeatherScreen
 }
 
 describe('WeatherScreen', () => {
+  it('changes appearance without resetting the location or requesting another forecast', async () => {
+    const props = createProps({ location, weather });
+    await render(
+      <ThemeProvider>
+        <WeatherScreen {...props} />
+      </ThemeProvider>,
+    );
+    await fireEvent.press(screen.getByRole('button', { name: 'Customize appearance' }));
+    await fireEvent.press(screen.getByRole('radio', { name: 'Orchid' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Close appearance' }));
+    expect(screen.getByRole('header', { name: 'Tbilisi' })).toBeOnTheScreen();
+    expect(screen.getByLabelText('21 degrees Celsius')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Location')).toHaveStyle({
+      color: findTheme('orchid')?.colors.ink,
+    });
+    expect(screen.getByRole('radio', { name: 'Open-Meteo' })).toHaveStyle({
+      backgroundColor: PROVIDER_PRESENTATIONS[0].accent,
+    });
+    expect(props.onRefresh).not.toHaveBeenCalled();
+    expect(props.onSearch).not.toHaveBeenCalled();
+    expect(props.onSelectProvider).not.toHaveBeenCalled();
+    expect(props.onSelectLocation).not.toHaveBeenCalled();
+  });
+
   it('opens source attribution and both location-data credits', async () => {
     const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
     await render(<WeatherScreen {...createProps({ location, weather })} />);
@@ -118,8 +144,12 @@ describe('WeatherScreen', () => {
         })}
       />,
     );
-    expect(screen.getByLabelText('5:00 PM, 20 degrees Celsius, Cloudy')).toBeOnTheScreen();
-    expect(screen.getByLabelText('8:00 PM, 18 degrees Celsius, Clear skies')).toBeOnTheScreen();
+    const timeline = within(screen.getByLabelText('Hourly forecast timeline'));
+    expect(
+      timeline.getByTestId('forecast-trace', { includeHiddenElements: true }),
+    ).toBeOnTheScreen();
+    expect(timeline.getByLabelText('5:00 PM, 20 degrees Celsius, Cloudy')).toBeOnTheScreen();
+    expect(timeline.getByLabelText('8:00 PM, 18 degrees Celsius, Clear skies')).toBeOnTheScreen();
   });
 
   it('selects a service and adapts its visual theme from provider metadata', async () => {

@@ -30,6 +30,7 @@ export function WeatherGlyph({ condition, color, size = 28, isDay = null }: Weat
   return (
     <View
       accessible={false}
+      aria-hidden={true}
       importantForAccessibility="no-hide-descendants"
       style={styles.container}
     >

@@ -4,6 +4,8 @@ This app contains no credentials, location permissions, analytics, or authentica
 
 Application logging is explicit and privacy filtered. The typed logger reconstructs allowlisted fields, excludes URLs, coordinates, search terms, payloads, headers, and exception details, and isolates reporting failures. Development uses a console sink; production is silent unless an external reporting adapter is deliberately injected. Framework and developer-tool logs are outside this application logger's contract.
 
+Sky is a local scripted assistant preview. Its messages are not transmitted, persisted, or logged; the transcript retains at most six exchanges in memory for the current app session. Appearance preferences are also session-only. No AI backend, credentials, training process, or external reporting service is connected.
+
 ## Dependency audit: 26 October 2026
 
 `npm audit` reports five high-severity package findings arising from two underlying advisories in Expo SDK 58’s tooling dependency chain:

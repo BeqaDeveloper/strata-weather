@@ -2,7 +2,7 @@ import Feather from '@expo/vector-icons/Feather';
 import type { ComponentProps } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet } from 'react-native';
 
-import { colors } from './tokens';
+import { useAppTheme } from '../theme/ThemeProvider';
 
 interface IconButtonProps {
   readonly label: string;
@@ -18,22 +18,30 @@ export function IconButton({
   icon,
   onPress,
   busy = false,
-  color = colors.ink,
-  backgroundColor = colors.paper,
+  color,
+  backgroundColor,
 }: IconButtonProps) {
+  const { theme } = useAppTheme();
+  const foreground = color ?? theme.colors.ink;
+  const background = backgroundColor ?? theme.colors.paper;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ disabled: busy, busy }}
+      aria-disabled={busy}
+      aria-busy={busy}
       disabled={busy}
       onPress={onPress}
-      style={({ pressed }) => [styles.button, { backgroundColor }, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.button,
+        { backgroundColor: background },
+        pressed && styles.pressed,
+      ]}
     >
       {busy ? (
-        <ActivityIndicator size="small" color={color} />
+        <ActivityIndicator size="small" color={foreground} />
       ) : (
-        <Feather name={icon} color={color} size={19} accessible={false} />
+        <Feather name={icon} color={foreground} size={19} accessible={false} aria-hidden={true} />
       )}
     </Pressable>
   );

@@ -2,7 +2,7 @@ import Feather from '@expo/vector-icons/Feather';
 import type { ComponentProps } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 
-import { colors } from './tokens';
+import { useAppTheme } from '../theme/ThemeProvider';
 
 interface ActionButtonProps {
   readonly label: string;
@@ -21,28 +21,32 @@ export function ActionButton({
   accessibilityLabel = label,
   disabled = false,
   busy = false,
-  backgroundColor = colors.ink,
-  foregroundColor = '#FFFFFF',
+  backgroundColor,
+  foregroundColor,
   icon = 'arrow-up-right',
 }: ActionButtonProps) {
+  const { theme } = useAppTheme();
+  const background = backgroundColor ?? theme.colors.accent;
+  const foreground = foregroundColor ?? theme.colors.onAccent;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      accessibilityState={{ disabled: disabled || busy, busy }}
+      aria-disabled={disabled || busy}
+      aria-busy={busy}
       disabled={disabled || busy}
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
-        { backgroundColor },
+        { backgroundColor: background },
         (pressed || disabled || busy) && styles.dimmed,
       ]}
     >
-      <Text style={[styles.label, { color: foregroundColor }]}>{label}</Text>
+      <Text style={[styles.label, { color: foreground }]}>{label}</Text>
       {busy ? (
-        <ActivityIndicator size="small" color={foregroundColor} />
+        <ActivityIndicator size="small" color={foreground} />
       ) : (
-        <Feather name={icon} color={foregroundColor} size={18} accessible={false} />
+        <Feather name={icon} color={foreground} size={18} accessible={false} aria-hidden={true} />
       )}
     </Pressable>
   );

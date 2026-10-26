@@ -2,7 +2,11 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import { Text } from 'react-native';
 
 import type { LogEvent } from '../shared/observability/logger';
+import { ThemeProvider } from '../shared/theme/ThemeProvider';
+import { findTheme } from '../shared/theme/themes';
 import { ApplicationErrorBoundary } from './ApplicationErrorBoundary';
+
+jest.mock('@expo/vector-icons/Feather', () => () => null);
 
 function BrokenScreen({ fail }: { readonly fail: boolean }) {
   if (fail) throw new Error('private city and raw error stack');
@@ -10,6 +14,19 @@ function BrokenScreen({ fail }: { readonly fail: boolean }) {
 }
 
 describe('application error boundary', () => {
+  it('keeps recovery text readable in the selected dark appearance', async () => {
+    const logger = { log: jest.fn() };
+    await render(
+      <ThemeProvider initialThemeId="midnight">
+        <ApplicationErrorBoundary logger={logger}>
+          <BrokenScreen fail />
+        </ApplicationErrorBoundary>
+      </ThemeProvider>,
+    );
+    expect(screen.getByRole('header')).toHaveStyle({ color: findTheme('midnight')?.colors.ink });
+    expect(screen.getByRole('button', { name: 'Restart weather screen' })).toBeOnTheScreen();
+  });
+
   beforeEach(() => {
     jest.spyOn(console, 'error').mockImplementation(() => {});
   });

@@ -27,6 +27,7 @@ module.exports = defineConfig([
                 './src/presentation',
                 './src/bootstrap',
                 './src/platform',
+                './src/features',
               ],
               message: 'Application logic consumes domain ports; composition belongs in bootstrap.',
             },
@@ -37,12 +38,13 @@ module.exports = defineConfig([
                 './src/presentation',
                 './src/bootstrap',
                 './src/platform',
+                './src/features',
               ],
               message: 'Adapters must not depend on application orchestration or presentation.',
             },
             {
               target: './src/presentation',
-              from: ['./src/infrastructure', './src/bootstrap', './src/platform'],
+              from: ['./src/infrastructure', './src/bootstrap', './src/platform', './src/features'],
               message:
                 'Presentation receives data and actions through props, not concrete services.',
             },
@@ -54,8 +56,20 @@ module.exports = defineConfig([
                 './src/presentation',
                 './src/bootstrap',
                 './src/platform',
+                './src/features',
               ],
               message: 'Shared building blocks must not depend on higher-level feature modules.',
+            },
+            {
+              target: './src/features',
+              from: [
+                './src/infrastructure',
+                './src/bootstrap',
+                './src/platform',
+                './src/presentation',
+              ],
+              message:
+                'Features consume shared UI and application ports, not concrete services or other screens.',
             },
           ],
         },

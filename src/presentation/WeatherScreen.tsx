@@ -1,8 +1,9 @@
 import Feather from '@expo/vector-icons/Feather';
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Keyboard,
   KeyboardAvoidingView,
   Linking,
   Platform,
@@ -17,14 +18,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { WeatherLocation, WeatherReport } from '../domain/weather';
 import { ActionButton } from '../shared/ui/ActionButton';
+import { IconButton } from '../shared/ui/IconButton';
 import { StatusNotice } from '../shared/ui/StatusNotice';
-import { colors, typography } from '../shared/ui/tokens';
+import { typography } from '../shared/ui/tokens';
+import { useAppTheme, useThemedStyles } from '../shared/theme/ThemeProvider';
+import type { AppTheme } from '../shared/theme/themes';
 import { formatLocationDetails } from './formatting';
 import { LocationSearchForm } from './LocationSearchForm';
 import type { ProviderDefinition } from './providers';
 import { ProviderSelector } from './ProviderSelector';
 import { WeatherCard } from './WeatherCard';
 import { WeatherScene } from './WeatherScene';
+import { AppearanceSheet } from './AppearanceSheet';
 
 export interface WeatherScreenProps {
   readonly providers: readonly ProviderDefinition[];
@@ -69,6 +74,10 @@ const SourceFooter = memo(function SourceFooter({
   readonly provider: ProviderDefinition;
   readonly weather: WeatherReport | undefined;
 }) {
+  const {
+    theme: { colors },
+  } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   return (
     <View style={styles.footer}>
       <View style={styles.sourceHeading}>
@@ -82,7 +91,13 @@ const SourceFooter = memo(function SourceFooter({
         style={styles.attribution}
       >
         <Text style={styles.attributionText}>{weather?.attribution ?? provider.attribution}</Text>
-        <Feather name="arrow-up-right" size={13} color={colors.muted} accessible={false} />
+        <Feather
+          name="arrow-up-right"
+          size={13}
+          color={colors.muted}
+          accessible={false}
+          aria-hidden={true}
+        />
       </Pressable>
       <View style={styles.footerBottom}>
         <Text style={styles.footerWordmark}>strata /</Text>
@@ -111,6 +126,11 @@ const SourceFooter = memo(function SourceFooter({
 });
 
 export function WeatherScreen(props: WeatherScreenProps) {
+  const {
+    theme: { colors },
+  } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
+  const [appearanceVisible, setAppearanceVisible] = useState(false);
   const insets = useSafeAreaInsets();
   const provider = props.providers.find(({ id }) => id === props.selectedProviderId);
   if (!provider)
@@ -125,7 +145,7 @@ export function WeatherScreen(props: WeatherScreenProps) {
       <ScrollView
         contentContainerStyle={[
           styles.scroll,
-          { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 16 },
+          { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 100 },
         ]}
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
@@ -152,11 +172,27 @@ export function WeatherScreen(props: WeatherScreenProps) {
                 strata<Text style={styles.brandSlash}> /</Text>
               </Text>
             </View>
-            <Text style={styles.edition}>{'WEATHER,\nIN PERSPECTIVE.'}</Text>
+            <View style={styles.headerActions}>
+              <Text style={styles.edition}>{'WEATHER,\nIN PERSPECTIVE.'}</Text>
+              <IconButton
+                label="Customize appearance"
+                icon="sliders"
+                onPress={() => {
+                  Keyboard.dismiss();
+                  setAppearanceVisible(true);
+                }}
+              />
+            </View>
           </View>
           <View style={styles.locationHeader}>
             <View style={styles.locationLabel}>
-              <Feather name="navigation" size={12} color={colors.muted} accessible={false} />
+              <Feather
+                name="navigation"
+                size={12}
+                color={colors.muted}
+                accessible={false}
+                aria-hidden={true}
+              />
               <Text style={styles.micro}>
                 {props.location ? 'YOUR CURRENT VIEW' : 'A NEW POINT OF VIEW'}
               </Text>
@@ -179,14 +215,11 @@ export function WeatherScreen(props: WeatherScreenProps) {
             isSearching={props.isSearching}
             searchError={props.searchError}
             onSelectLocation={props.onSelectLocation}
-            accent={provider.accent}
-            ink={provider.ink}
           />
           <ProviderSelector
             providers={props.providers}
             selectedProviderId={props.selectedProviderId}
             onSelectProvider={props.onSelectProvider}
-            ink={provider.ink}
           />
           {props.weatherError ? (
             <StatusNotice
@@ -239,7 +272,7 @@ export function WeatherScreen(props: WeatherScreenProps) {
                     accessibilityLabel="Try Tbilisi"
                     onPress={() => props.onSelectLocation(TBILISI)}
                     backgroundColor={provider.accent}
-                    foregroundColor={colors.ink}
+                    foregroundColor={provider.ink}
                   />
                 </View>
               </View>
@@ -249,136 +282,141 @@ export function WeatherScreen(props: WeatherScreenProps) {
           <SourceFooter provider={provider} weather={props.weather} />
         </View>
       </ScrollView>
+      <AppearanceSheet visible={appearanceVisible} onClose={() => setAppearanceVisible(false)} />
     </KeyboardAvoidingView>
   );
 }
 
-const styles = StyleSheet.create({
-  root: { backgroundColor: colors.canvas, flex: 1 },
-  scroll: { alignItems: 'center', flexGrow: 1, paddingHorizontal: 22 },
-  content: { gap: 24, maxWidth: 620, width: '100%' },
-  header: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 5,
-  },
-  brand: { alignItems: 'center', flexDirection: 'row', gap: 8 },
-  brandSymbol: {
-    alignItems: 'center',
-    backgroundColor: colors.ink,
-    borderRadius: 18,
-    height: 34,
-    justifyContent: 'center',
-    overflow: 'hidden',
-    width: 34,
-  },
-  brandSun: { borderRadius: 7, height: 14, marginTop: -3, width: 14 },
-  brandHorizon: {
-    backgroundColor: colors.ink,
-    borderTopColor: colors.canvas,
-    borderTopWidth: 1,
-    bottom: 6,
-    height: 8,
-    left: 5,
-    position: 'absolute',
-    right: 5,
-  },
-  wordmark: { color: colors.ink, fontSize: 30, fontWeight: '800', letterSpacing: -1.5 },
-  brandSlash: { color: '#94A08B', fontWeight: '400' },
-  edition: {
-    color: colors.muted,
-    fontFamily: typography.mono,
-    fontSize: 8,
-    letterSpacing: 1,
-    lineHeight: 13,
-    textAlign: 'right',
-  },
-  locationHeader: { gap: 8 },
-  locationLabel: { alignItems: 'center', flexDirection: 'row', gap: 6 },
-  micro: { color: colors.muted, fontFamily: typography.mono, fontSize: 9, letterSpacing: 1.3 },
-  locationName: {
-    color: colors.ink,
-    fontSize: 43,
-    fontWeight: '500',
-    letterSpacing: -2,
-    lineHeight: 47,
-  },
-  locationDetail: { color: colors.muted, fontSize: 13, lineHeight: 21 },
-  loading: {
-    alignItems: 'center',
-    backgroundColor: colors.night,
-    borderRadius: 28,
-    gap: 18,
-    justifyContent: 'center',
-    minHeight: 340,
-    padding: 28,
-  },
-  loadingTitle: {
-    color: '#F3F8E9',
-    fontSize: 24,
-    fontWeight: '500',
-    letterSpacing: -0.8,
-    textAlign: 'center',
-  },
-  loadingDetail: { color: colors.nightMuted, fontSize: 12, textAlign: 'center' },
-  empty: {
-    backgroundColor: colors.night,
-    borderRadius: 30,
-    minHeight: 390,
-    overflow: 'hidden',
-    padding: 24,
-  },
-  emptyIndex: { fontFamily: typography.mono, fontSize: 9, letterSpacing: 1.6 },
-  emptyCopy: { gap: 12, marginTop: 155 },
-  emptyTitle: {
-    color: '#F3F8E9',
-    fontSize: 29,
-    fontWeight: '500',
-    letterSpacing: -1.2,
-    lineHeight: 34,
-  },
-  emptyDescription: { color: colors.nightMuted, fontSize: 12, lineHeight: 20 },
-  quickSelect: { alignSelf: 'flex-start', marginTop: 9 },
-  emptyCoordinates: {
-    color: '#8FA48F',
-    fontFamily: typography.mono,
-    fontSize: 9,
-    letterSpacing: 1,
-    marginTop: 24,
-  },
-  footer: { gap: 9, paddingTop: 1 },
-  sourceHeading: { alignItems: 'center', flexDirection: 'row', gap: 7 },
-  sourceDot: { borderRadius: 3, height: 5, width: 5 },
-  sourceEyebrow: {
-    color: colors.muted,
-    fontFamily: typography.mono,
-    fontSize: 8,
-    letterSpacing: 0.8,
-  },
-  sourceDescription: { color: colors.muted, fontSize: 12, lineHeight: 19 },
-  attribution: {
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 5,
-    minHeight: 44,
-  },
-  attributionText: { color: colors.muted, flexShrink: 1, fontSize: 10, lineHeight: 17 },
-  footerBottom: {
-    alignItems: 'center',
-    borderTopColor: colors.line,
-    borderTopWidth: 1,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    justifyContent: 'space-between',
-    marginTop: 5,
-    paddingTop: 7,
-  },
-  footerWordmark: { color: colors.muted, fontSize: 19, fontWeight: '700', letterSpacing: -0.8 },
-  geocodingLinks: { alignItems: 'center', flexDirection: 'row', gap: 8 },
-  footerLink: { justifyContent: 'center', minHeight: 44 },
-  geocodingText: { color: colors.muted, fontFamily: typography.mono, fontSize: 9 },
-});
+const createStyles = ({ colors }: AppTheme) =>
+  StyleSheet.create({
+    root: { backgroundColor: colors.canvas, flex: 1 },
+    scroll: { alignItems: 'center', flexGrow: 1, paddingHorizontal: 22 },
+    content: { gap: 24, maxWidth: 620, width: '100%' },
+    header: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      rowGap: 12,
+      justifyContent: 'space-between',
+      marginBottom: 5,
+    },
+    brand: { alignItems: 'center', flexDirection: 'row', gap: 8 },
+    brandSymbol: {
+      alignItems: 'center',
+      backgroundColor: colors.scene,
+      borderRadius: 18,
+      height: 34,
+      justifyContent: 'center',
+      overflow: 'hidden',
+      width: 34,
+    },
+    brandSun: { borderRadius: 7, height: 14, marginTop: -3, width: 14 },
+    brandHorizon: {
+      backgroundColor: colors.scene,
+      borderTopColor: colors.sceneText,
+      borderTopWidth: 1,
+      bottom: 6,
+      height: 8,
+      left: 5,
+      position: 'absolute',
+      right: 5,
+    },
+    wordmark: { color: colors.ink, fontSize: 30, fontWeight: '800', letterSpacing: -1.5 },
+    brandSlash: { color: colors.muted, fontWeight: '400' },
+    headerActions: { alignItems: 'center', flexDirection: 'row', gap: 12 },
+    edition: {
+      color: colors.muted,
+      fontFamily: typography.mono,
+      fontSize: 8,
+      letterSpacing: 1,
+      lineHeight: 13,
+      textAlign: 'right',
+    },
+    locationHeader: { gap: 8 },
+    locationLabel: { alignItems: 'center', flexDirection: 'row', gap: 6 },
+    micro: { color: colors.muted, fontFamily: typography.mono, fontSize: 9, letterSpacing: 1.3 },
+    locationName: {
+      color: colors.ink,
+      fontSize: 43,
+      fontWeight: '500',
+      letterSpacing: -2,
+      lineHeight: 47,
+    },
+    locationDetail: { color: colors.muted, fontSize: 13, lineHeight: 21 },
+    loading: {
+      alignItems: 'center',
+      backgroundColor: colors.scene,
+      borderRadius: 28,
+      gap: 18,
+      justifyContent: 'center',
+      minHeight: 340,
+      padding: 28,
+    },
+    loadingTitle: {
+      color: colors.sceneText,
+      fontSize: 24,
+      fontWeight: '500',
+      letterSpacing: -0.8,
+      textAlign: 'center',
+    },
+    loadingDetail: { color: colors.sceneMuted, fontSize: 12, textAlign: 'center' },
+    empty: {
+      backgroundColor: colors.scene,
+      borderRadius: 30,
+      minHeight: 390,
+      overflow: 'hidden',
+      padding: 24,
+    },
+    emptyIndex: { fontFamily: typography.mono, fontSize: 9, letterSpacing: 1.6 },
+    emptyCopy: { gap: 12, marginTop: 155 },
+    emptyTitle: {
+      color: colors.sceneText,
+      fontSize: 29,
+      fontWeight: '500',
+      letterSpacing: -1.2,
+      lineHeight: 34,
+    },
+    emptyDescription: { color: colors.sceneMuted, fontSize: 12, lineHeight: 20 },
+    quickSelect: { alignSelf: 'flex-start', marginTop: 9 },
+    emptyCoordinates: {
+      color: colors.sceneMuted,
+      fontFamily: typography.mono,
+      fontSize: 9,
+      letterSpacing: 1,
+      marginTop: 24,
+    },
+    footer: { gap: 9, paddingTop: 1 },
+    sourceHeading: { alignItems: 'center', flexDirection: 'row', gap: 7 },
+    sourceDot: { borderRadius: 3, height: 5, width: 5 },
+    sourceEyebrow: {
+      color: colors.muted,
+      fontFamily: typography.mono,
+      fontSize: 8,
+      letterSpacing: 0.8,
+    },
+    sourceDescription: { color: colors.muted, fontSize: 12, lineHeight: 19 },
+    attribution: {
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 5,
+      minHeight: 44,
+    },
+    attributionText: { color: colors.muted, flexShrink: 1, fontSize: 10, lineHeight: 17 },
+    footerBottom: {
+      alignItems: 'center',
+      borderTopColor: colors.line,
+      borderTopWidth: 1,
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      justifyContent: 'space-between',
+      marginTop: 5,
+      paddingTop: 7,
+    },
+    footerWordmark: { color: colors.muted, fontSize: 19, fontWeight: '700', letterSpacing: -0.8 },
+    geocodingLinks: { alignItems: 'center', flexDirection: 'row', gap: 8 },
+    footerLink: { justifyContent: 'center', minHeight: 44 },
+    geocodingText: { color: colors.muted, fontFamily: typography.mono, fontSize: 9 },
+  });

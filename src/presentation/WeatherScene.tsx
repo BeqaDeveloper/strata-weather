@@ -14,6 +14,7 @@ import Svg, {
 } from 'react-native-svg';
 
 import type { WeatherCondition } from '../domain/weather';
+import { useAppTheme } from '../shared/theme/ThemeProvider';
 
 interface WeatherSceneProps {
   readonly accent: string;
@@ -30,6 +31,8 @@ export const WeatherScene = memo(function WeatherScene({
   condition,
   isDay,
 }: WeatherSceneProps) {
+  const { theme } = useAppTheme();
+  const background = theme.colors.scene;
   const id = useId().replace(/:/g, '');
   const cloudy =
     condition === 'cloudy' ||
@@ -43,6 +46,7 @@ export const WeatherScene = memo(function WeatherScene({
     <View
       pointerEvents="none"
       accessible={false}
+      aria-hidden={true}
       importantForAccessibility="no-hide-descendants"
       style={StyleSheet.absoluteFill}
     >
@@ -51,7 +55,7 @@ export const WeatherScene = memo(function WeatherScene({
           <RadialGradient id={`${id}atmosphere`} cx="79%" cy="28%" rx="75%" ry="70%">
             <Stop offset="0" stopColor={sceneColor} stopOpacity="0.85" />
             <Stop offset="0.6" stopColor={sceneColor} stopOpacity="0.15" />
-            <Stop offset="1" stopColor="#121C18" stopOpacity="0" />
+            <Stop offset="1" stopColor={background} stopOpacity="0" />
           </RadialGradient>
           <LinearGradient id={`${id}orb`} x1="0" y1="0" x2="1" y2="1">
             <Stop offset="0" stopColor="#F7FFE2" />
@@ -63,11 +67,11 @@ export const WeatherScene = memo(function WeatherScene({
             <Stop offset="1" stopColor={sceneColor} stopOpacity="0.8" />
           </LinearGradient>
           <LinearGradient id={`${id}shade`} x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0.3" stopColor="#121C18" stopOpacity="0" />
-            <Stop offset="1" stopColor="#121C18" stopOpacity="0.96" />
+            <Stop offset="0.3" stopColor={background} stopOpacity="0" />
+            <Stop offset="1" stopColor={background} stopOpacity="0.96" />
           </LinearGradient>
         </Defs>
-        <Rect width="360" height="360" fill="#121C18" />
+        <Rect width="360" height="360" fill={background} />
         <Rect width="360" height="360" fill={`url(#${id}atmosphere)`} />
         <G transform="translate(265 158) rotate(-28)">
           {ISOBARS.map((index) => (
