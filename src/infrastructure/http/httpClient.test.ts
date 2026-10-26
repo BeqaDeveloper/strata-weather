@@ -1,4 +1,5 @@
 import { createHttpClient } from './httpClient';
+import { createLogger, type LogRecord } from '../../shared/observability/logger';
 
 function response(status: number, data: unknown, headers: Record<string, string> = {}): Response {
   return {
@@ -114,6 +115,120 @@ describe('HTTP client', () => {
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
+  it('invalidates a cached response so validation failures can recover', async () => {
+    const fetch = mockFetch().mockResolvedValue(response(200, { value: 1 }));
+    const http = createHttpClient({ fetch });
+    await http.get('https://example.com', { signal, cache: true });
+    http.invalidate('https://example.com');
+    await http.get('https://example.com', { signal, cache: true });
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('records safe request duration and endpoint names without location details', async () => {
+    const records: LogRecord[] = [];
+    let now = 100;
+    const fetch = mockFetch().mockImplementation(async () => {
+      now += 37;
+      return response(200, { city: 'Secret City' });
+    });
+    const http = createHttpClient({
+      fetch,
+      now: () => now,
+      logger: createLogger((record) => records.push(record)),
+    });
+    await http.get('https://geocoding-api.open-meteo.com/v1/search?name=Secret%20City', {
+      signal,
+      headers: { Authorization: 'private' },
+    });
+    expect(records).toEqual([
+      expect.objectContaining({ event: 'http.request_started', endpoint: 'location-search' }),
+      expect.objectContaining({
+        event: 'http.request_succeeded',
+        endpoint: 'location-search',
+        durationMs: 37,
+        status: 200,
+      }),
+    ]);
+    expect(JSON.stringify(records)).not.toMatch(/Secret|private|Authorization|https|name=/);
+  });
+
+  it.each([
+    ['https://api.open-meteo.com/v1/forecast?latitude=1', 'open-meteo-weather'],
+    ['https://api.met.no/weatherapi/locationforecast?lat=1', 'met-norway-weather'],
+    ['https://api.open-meteo.com.attacker.invalid?token=secret', 'unknown'],
+    ['private malformed url', 'unknown'],
+  ])('uses an allowlisted endpoint for %s', async (url, endpoint) => {
+    const sink = jest.fn();
+    await createHttpClient({
+      fetch: mockFetch().mockResolvedValue(response(200, {})),
+      logger: createLogger(sink),
+    }).get(url, { signal });
+    expect(sink).toHaveBeenCalledWith(
+      expect.objectContaining({ event: 'http.request_started', endpoint }),
+    );
+  });
+
+  it('emits a cache hit and conditional revalidation as distinct events', async () => {
+    let now = 0;
+    const sink = jest.fn();
+    const fetch = mockFetch()
+      .mockResolvedValueOnce(
+        response(
+          200,
+          {},
+          { Expires: new Date(1000).toUTCString(), 'Last-Modified': new Date(0).toUTCString() },
+        ),
+      )
+      .mockResolvedValueOnce(response(304, null, { Expires: new Date(3000).toUTCString() }));
+    const http = createHttpClient({ fetch, now: () => now, logger: createLogger(sink) });
+    await http.get('https://api.met.no/', { signal, cache: true });
+    await http.get('https://api.met.no/', { signal, cache: true });
+    expect(sink).toHaveBeenCalledWith(
+      expect.objectContaining({ event: 'http.cache_hit', endpoint: 'met-norway-weather' }),
+    );
+    now = 2000;
+    await http.get('https://api.met.no/', { signal, cache: true });
+    expect(sink).toHaveBeenCalledWith(
+      expect.objectContaining({ event: 'http.cache_revalidated', status: 304 }),
+    );
+    http.invalidate('https://api.met.no/');
+    expect(sink).toHaveBeenCalledWith(expect.objectContaining({ event: 'http.cache_invalidated' }));
+  });
+
+  it('records an HTTP failure once using its safe classification', async () => {
+    const sink = jest.fn();
+    await expect(
+      createHttpClient({
+        fetch: mockFetch().mockResolvedValue(response(503, { message: 'private' })),
+        logger: createLogger(sink),
+      }).get('https://api.met.no/?lat=42', { signal }),
+    ).rejects.toMatchObject({ code: 'unavailable' });
+    expect(sink).toHaveBeenCalledTimes(2);
+    expect(sink).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        event: 'http.request_failed',
+        endpoint: 'met-norway-weather',
+        status: 503,
+        errorCode: 'unavailable',
+        retryable: true,
+        level: 'warn',
+      }),
+    );
+    expect(JSON.stringify(sink.mock.calls)).not.toMatch(/private|lat=/);
+  });
+
+  it('does not allow injected logger failures to change request results', async () => {
+    const http = createHttpClient({
+      fetch: mockFetch().mockResolvedValue(response(200, { value: 42 })),
+      logger: {
+        log: () => {
+          throw new Error('Broken sink');
+        },
+      },
+    });
+    await expect(http.get('https://example.com', { signal })).resolves.toEqual({ value: 42 });
+  });
+
   it('rejects a 304 response without a cache entry', async () => {
     await expect(
       createHttpClient({ fetch: mockFetch().mockResolvedValue(response(304, null)) }).get(
@@ -164,6 +279,29 @@ describe('HTTP client', () => {
       createHttpClient({ fetch }).get('https://example.com', { signal: controller.signal }),
     ).rejects.toMatchObject({ code: 'cancelled' });
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('classifies cancellation as debug telemetry without a failure event', async () => {
+    const controller = new AbortController();
+    const sink = jest.fn();
+    const fetch = mockFetch().mockImplementation(
+      (_url, init) =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(new Error('private')), {
+            once: true,
+          });
+        }),
+    );
+    const http = createHttpClient({ fetch, logger: createLogger(sink) });
+    const pending = http.get('https://api.met.no/', { signal: controller.signal });
+    controller.abort();
+    await expect(pending).rejects.toMatchObject({ code: 'cancelled' });
+    expect(sink).toHaveBeenLastCalledWith(
+      expect.objectContaining({ event: 'http.request_cancelled', level: 'debug' }),
+    );
+    expect(sink.mock.calls.flat()).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ event: 'http.request_failed' })]),
+    );
   });
 
   it('aborts slow requests and reports timeouts separately', async () => {

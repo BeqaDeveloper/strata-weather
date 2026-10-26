@@ -1,19 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 
-import { WeatherError, toWeatherError } from '../domain/errors';
+import { toWeatherError } from '../domain/errors';
 import { validateLocationQuery } from '../domain/validation';
-import type { LocationSearch, WeatherLocation, WeatherProvider } from '../domain/weather';
+import type { WeatherLocation } from '../domain/weather';
+import type { WeatherDependencies } from './ports';
+import { weatherQueryKeys } from './queryKeys';
+import { QUERY_POLICY, shouldRetryRequest } from './queryPolicy';
 
-export interface WeatherDependencies {
-  readonly providers: ReadonlyMap<string, WeatherProvider>;
-  readonly locationSearch: LocationSearch;
-  readonly initialProviderId: string;
-}
-
-export function shouldRetryRequest(failureCount: number, error: Error): boolean {
-  return failureCount < 1 && error instanceof WeatherError && error.retryable;
-}
+const EMPTY_LOCATIONS: readonly WeatherLocation[] = Object.freeze([]);
 
 export function useWeatherController(dependencies: WeatherDependencies) {
   const [selectedProviderId, setSelectedProviderId] = useState(dependencies.initialProviderId);
@@ -26,31 +21,34 @@ export function useWeatherController(dependencies: WeatherDependencies) {
   if (!provider) throw new Error(`Weather provider is not registered: ${selectedProviderId}`);
 
   const search = useQuery({
-    queryKey: ['locations', submittedQuery],
+    queryKey: weatherQueryKeys.locations(submittedQuery),
     queryFn: ({ signal }) => dependencies.locationSearch.search(submittedQuery ?? '', signal),
     enabled: submittedQuery !== null,
-    staleTime: 24 * 60 * 60 * 1000,
+    staleTime: QUERY_POLICY.locationFreshnessMs,
     retry: shouldRetryRequest,
+    meta: { operation: 'location-search' },
   });
 
   const forecast = useQuery({
-    queryKey: ['weather', provider.id, location?.id, location?.latitude, location?.longitude],
+    queryKey: weatherQueryKeys.forecast(provider.id, location),
     queryFn: ({ signal }) => {
       if (!location) throw new Error('Choose a location before requesting weather.');
       return provider.getWeather(location, signal);
     },
     enabled: location !== null,
-    staleTime: 0,
+    staleTime: QUERY_POLICY.forecastFreshnessMs,
     retry: shouldRetryRequest,
+    meta: { operation: 'weather' },
   });
 
-  function onChangeQuery(value: string) {
+  const onChangeQuery = useCallback((value: string) => {
     setQuery(value);
     setValidationError(null);
     setSubmittedQuery(null);
-  }
+  }, []);
 
-  function onSearch() {
+  const { refetch: refetchSearch } = search;
+  const onSearch = useCallback(() => {
     const result = validateLocationQuery(query);
     if (!result.success) {
       setValidationError(result.error);
@@ -58,43 +56,57 @@ export function useWeatherController(dependencies: WeatherDependencies) {
       return;
     }
     setValidationError(null);
-    if (submittedQuery === result.value) void search.refetch();
+    if (submittedQuery === result.value) void refetchSearch();
     else setSubmittedQuery(result.value);
-  }
+  }, [query, submittedQuery, refetchSearch]);
 
-  function onSelectLocation(value: WeatherLocation) {
+  const onSelectLocation = useCallback((value: WeatherLocation) => {
     setLocation(value);
     setSubmittedQuery(null);
     setQuery([value.name, value.country].filter(Boolean).join(', '));
     setValidationError(null);
-  }
+  }, []);
 
-  function onSelectProvider(id: string) {
-    if (dependencies.providers.has(id)) setSelectedProviderId(id);
-  }
+  const onSelectProvider = useCallback(
+    (id: string) => {
+      if (dependencies.providers.has(id)) setSelectedProviderId(id);
+    },
+    [dependencies.providers],
+  );
 
-  function onRefresh() {
-    if (location && !forecast.isFetching) void forecast.refetch();
-  }
+  const {
+    refetch: refetchForecast,
+    isFetching: isForecastFetching,
+    isPaused: isForecastPaused,
+  } = forecast;
+  const onRefresh = useCallback(() => {
+    if (location && !isForecastFetching && !isForecastPaused) void refetchForecast();
+  }, [location, refetchForecast, isForecastFetching, isForecastPaused]);
 
-  const searchError = search.error
-    ? toWeatherError(search.error).message
-    : submittedQuery !== null && search.isSuccess && search.data.length === 0
-      ? 'No locations found. Try a nearby city or a more specific name.'
-      : null;
+  const searchError = search.isPaused
+    ? 'You appear to be offline. Location search will resume when you reconnect.'
+    : search.error
+      ? toWeatherError(search.error).message
+      : submittedQuery !== null && search.isSuccess && search.data.length === 0
+        ? 'No locations found. Try a nearby city or a more specific name.'
+        : null;
 
   return {
     selectedProviderId,
     query,
     validationError,
-    locations: submittedQuery === null ? [] : (search.data ?? []),
+    locations: submittedQuery === null ? EMPTY_LOCATIONS : (search.data ?? EMPTY_LOCATIONS),
     isSearching: search.isFetching,
     searchError: submittedQuery === null ? null : searchError,
     location,
     weather: forecast.data,
-    isLoading: location !== null && forecast.isPending,
+    isLoading: location !== null && forecast.isPending && !forecast.isPaused,
     isRefreshing: forecast.isFetching && forecast.data !== undefined,
-    weatherError: forecast.error ? toWeatherError(forecast.error).message : null,
+    weatherError: forecast.isPaused
+      ? 'You appear to be offline. The forecast will update when you reconnect.'
+      : forecast.error
+        ? toWeatherError(forecast.error).message
+        : null,
     onChangeQuery,
     onSearch,
     onSelectLocation,

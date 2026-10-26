@@ -1,6 +1,8 @@
 import Feather from '@expo/vector-icons/Feather';
+import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { colors, typography } from '../shared/ui/tokens';
 import type { ProviderDefinition } from './providers';
 
 interface ProviderSelectorProps {
@@ -10,7 +12,7 @@ interface ProviderSelectorProps {
   readonly ink: string;
 }
 
-export function ProviderSelector({
+export const ProviderSelector = memo(function ProviderSelector({
   providers,
   selectedProviderId,
   onSelectProvider,
@@ -19,15 +21,15 @@ export function ProviderSelector({
   return (
     <View style={styles.container}>
       <View style={styles.heading}>
-        <Text style={[styles.label, { color: ink }]}>YOUR WEATHER SOURCE</Text>
-        <Text style={styles.hint}>Two perspectives. One place.</Text>
+        <Text style={styles.label}>FORECAST SOURCE</Text>
+        <Feather name="layers" size={13} color={colors.muted} accessible={false} />
       </View>
       <View
         accessibilityRole="radiogroup"
         accessibilityLabel="Weather service"
         style={styles.options}
       >
-        {providers.map((provider) => {
+        {providers.map((provider, index) => {
           const selected = selectedProviderId === provider.id;
           return (
             <Pressable
@@ -38,59 +40,54 @@ export function ProviderSelector({
               onPress={() => onSelectProvider(provider.id)}
               style={({ pressed }) => [
                 styles.option,
-                {
-                  backgroundColor: selected ? provider.surface : '#F9F8F3',
-                  borderColor: selected ? provider.accent : '#DDDCD3',
-                },
+                { backgroundColor: selected ? provider.accent : 'transparent' },
                 pressed && styles.pressed,
               ]}
             >
-              <View
-                style={[styles.indicator, { borderColor: selected ? provider.accent : '#7D8580' }]}
-              >
-                {selected ? (
-                  <View style={[styles.dot, { backgroundColor: provider.accent }]} />
-                ) : null}
-              </View>
-              <Text style={[styles.name, { color: provider.ink }]}>{provider.name}</Text>
-              {selected ? (
-                <Feather name="check" color={provider.accent} size={16} accessible={false} />
-              ) : null}
+              <Text style={[styles.number, { color: selected ? ink : colors.muted }]}>
+                {String(index + 1).padStart(2, '0')}
+              </Text>
+              <Text style={[styles.name, { color: selected ? ink : colors.muted }]}>
+                {provider.name}
+              </Text>
+              {selected ? <Feather name="check" color={ink} size={15} accessible={false} /> : null}
             </Pressable>
           );
         })}
       </View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
-  container: { gap: 12 },
-  heading: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between' },
-  label: { fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
-  hint: { color: '#626E69', fontSize: 11 },
-  options: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  container: { gap: 10 },
+  heading: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
+  },
+  label: { color: colors.muted, fontFamily: typography.mono, fontSize: 9, letterSpacing: 1.3 },
+  options: {
+    backgroundColor: '#E7EAE1',
+    borderRadius: 27,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    padding: 4,
+  },
   option: {
     alignItems: 'center',
-    borderRadius: 13,
-    borderWidth: 1,
+    borderRadius: 23,
     flex: 1,
     flexDirection: 'row',
-    gap: 9,
-    minHeight: 54,
-    minWidth: 135,
-    paddingHorizontal: 14,
+    gap: 7,
+    minHeight: 46,
+    minWidth: 125,
+    paddingHorizontal: 13,
     paddingVertical: 12,
   },
-  indicator: {
-    alignItems: 'center',
-    borderRadius: 8,
-    borderWidth: 1.5,
-    height: 15,
-    justifyContent: 'center',
-    width: 15,
-  },
-  dot: { borderRadius: 4, height: 7, width: 7 },
-  name: { flex: 1, fontSize: 13, fontWeight: '600' },
+  number: { fontFamily: typography.mono, fontSize: 9 },
+  name: { flex: 1, fontSize: 12, fontWeight: '700' },
   pressed: { opacity: 0.7 },
 });

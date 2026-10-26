@@ -1,7 +1,9 @@
 import Feather from '@expo/vector-icons/Feather';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import type { WeatherLocation } from '../domain/weather';
+import { IconButton } from '../shared/ui/IconButton';
+import { colors, typography } from '../shared/ui/tokens';
 import { formatLocationDetails } from './formatting';
 
 interface LocationSearchFormProps {
@@ -26,15 +28,13 @@ export function LocationSearchForm({
   isSearching,
   searchError,
   onSelectLocation,
-  accent,
   ink,
 }: LocationSearchFormProps) {
   const error = validationError ?? searchError;
   return (
     <View style={styles.section}>
-      <Text style={[styles.label, { color: ink }]}>YOUR CORNER OF THE WORLD</Text>
       <View style={[styles.field, error ? styles.fieldError : null]}>
-        <Feather name="map-pin" size={20} color={accent} accessible={false} />
+        <Feather name="search" size={18} color={colors.muted} accessible={false} />
         <TextInput
           accessibilityLabel="Location"
           accessibilityHint="Enter a city or postal code, then search to choose a location."
@@ -43,32 +43,21 @@ export function LocationSearchForm({
           maxLength={100}
           onChangeText={onChangeQuery}
           onSubmitEditing={onSearch}
-          placeholder="City or postal code"
+          placeholder="Find a city or postal code"
           placeholderTextColor="#737C78"
           returnKeyType="search"
-          selectionColor={accent}
+          selectionColor={ink}
           style={[styles.input, { color: ink }]}
           value={query}
         />
-        <Pressable
-          accessibilityLabel="Search location"
-          accessibilityRole="button"
-          accessibilityState={{ disabled: isSearching, busy: isSearching }}
-          disabled={isSearching}
+        <IconButton
+          label="Search location"
+          icon="arrow-right"
           onPress={onSearch}
-          style={({ pressed }) => [
-            styles.searchButton,
-            { backgroundColor: ink },
-            pressed && styles.pressed,
-          ]}
-        >
-          {isSearching ? (
-            <ActivityIndicator color="#FFFFFF" size="small" />
-          ) : (
-            <Feather name="arrow-right" size={21} color="#FFFFFF" accessible={false} />
-          )}
-          <Text style={styles.searchText}>Search</Text>
-        </Pressable>
+          busy={isSearching}
+          backgroundColor={ink}
+          color="#FFFFFF"
+        />
       </View>
       {error ? (
         <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.error}>
@@ -95,7 +84,7 @@ export function LocationSearchForm({
                 <Text style={[styles.resultName, { color: ink }]}>{candidate.name}</Text>
                 <Text style={styles.helper}>{formatLocationDetails(candidate)}</Text>
               </View>
-              <Feather name="arrow-up-right" size={20} color={accent} accessible={false} />
+              <Feather name="arrow-up-right" size={20} color={ink} accessible={false} />
             </Pressable>
           ))}
         </View>
@@ -106,31 +95,20 @@ export function LocationSearchForm({
 
 const styles = StyleSheet.create({
   section: { gap: 10 },
-  label: { fontSize: 10, fontWeight: '700', letterSpacing: 1.8 },
   field: {
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderColor: '#DDDCD3',
-    borderRadius: 17,
+    borderColor: colors.line,
+    borderRadius: 28,
     borderWidth: 1,
     flexDirection: 'row',
     gap: 10,
-    minHeight: 66,
-    padding: 7,
+    minHeight: 60,
+    padding: 6,
     paddingLeft: 16,
   },
   fieldError: { borderColor: '#B13D36' },
-  input: { flex: 1, fontSize: 16, minHeight: 48, minWidth: 0, paddingVertical: 8 },
-  searchButton: {
-    alignItems: 'center',
-    borderRadius: 11,
-    flexDirection: 'row',
-    gap: 6,
-    justifyContent: 'center',
-    minHeight: 48,
-    paddingHorizontal: 12,
-  },
-  searchText: { color: '#FFFFFF', fontSize: 13, fontWeight: '600' },
+  input: { flex: 1, fontSize: 14, minHeight: 46, minWidth: 0, paddingVertical: 8 },
   pressed: { opacity: 0.7 },
   error: { color: '#9A302B', fontSize: 13, lineHeight: 20 },
   helper: { color: '#626E69', fontSize: 13, lineHeight: 20 },
@@ -143,7 +121,8 @@ const styles = StyleSheet.create({
     paddingTop: 15,
   },
   resultsLabel: {
-    color: '#626E69',
+    color: colors.muted,
+    fontFamily: typography.mono,
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1.5,

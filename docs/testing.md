@@ -9,13 +9,13 @@ npm run typecheck
 npm run lint
 npm run format:check
 npm run check
-npx expo-doctor
+npm run doctor
 npm run export:all
 ```
 
 Jest uses `jest-expo` and React Native Testing Library. The suite runs offline. Each hook test creates a fresh QueryClient and injects its own location and weather services. Adapter tests use realistic remote payloads, and HTTP tests inject fetch and clock behavior.
 
-Coverage gates apply independently to domain rules, infrastructure, and orchestration, so one well-covered layer cannot conceal missing tests in another. UI formatting and conditional provider presentation are tested separately. Coverage is a guardrail; assertions focus on user behavior and failure boundaries.
+Baseline coverage gates require 90% lines and statements, 80% branches, and 85% functions. Separate gates apply to domain rules, infrastructure, and orchestration; provider catalog invariants and the privacy-safe logger require full coverage. Jest evaluates scoped paths separately and removes them from the baseline pool, so highly covered adapters cannot conceal missing UI or lifecycle tests. Coverage is a guardrail; assertions focus on user behavior and failure boundaries.
 
 ## Behaviors to preserve
 
@@ -30,6 +30,14 @@ Coverage gates apply independently to domain rules, infrastructure, and orchestr
 - Transport timeouts, cancellation, rate limits, endpoint retirement, and caching remain predictable.
 - MET Norway converts wind to km/h and omits unsupported feels-like measurements.
 - Both providers use the same condition vocabulary.
+- Duplicate registrations, missing presentation identities, and invalid defaults fail before requests begin.
+- Editing the search input does not rerender expensive forecast artwork; weather changes still update it.
+- Offline pauses are visible without endless loading and resume on reconnection.
+- Native focus and network subscriptions are cleaned up once and ignore late callbacks.
+- A malformed MET cache entry is evicted so a retry can recover from a corrected payload.
+- Unknown current or hourly daylight never produces a daylight claim or assumed sun icon.
+- Logs retain only allowlisted diagnostic fields; a broken reporting adapter cannot break requests or recovery UI.
+- Forecast geometry respects real elapsed time, including uneven intervals and flat temperatures.
 
 ## Device checklist
 
@@ -42,5 +50,7 @@ Before distributing a signed release, verify Android and iOS on actual devices o
 5. Check keyboard submit, small screens, tablets, safe areas, large text, TalkBack, and VoiceOver.
 6. Verify external attribution links and pull-to-refresh behavior.
 7. Confirm MET Norway receives the identifying User-Agent from the native networking stack.
+8. Background and resume the app; confirm stale weather refreshes without duplicating subscriptions.
+9. Enable development logging and confirm records contain endpoint categories and codes without user search terms or coordinates.
 
 Native JavaScript exports establish that both platform bundles compile. They do not create signed installable binaries and do not substitute for device tests.

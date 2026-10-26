@@ -1,85 +1,119 @@
-# Strata Weather
+<p align="center"><img src="assets/strata-mark.svg" width="84" alt="Strata sun above the horizon" /></p>
+<h1 align="center">Strata Weather</h1>
+<p align="center">Two weather services. A considered mobile experience.</p>
+<p align="center">React Native 0.88 · TypeScript 6 · Expo SDK 58 · Android / iOS / Web</p>
 
-A little clarity, whatever the weather. A mobile weather app built with React Native, TypeScript, and Expo, with interchangeable weather services and a visual identity for each one.
+Strata lets you search for a city, choose the right location, and compare forecasts from **Open-Meteo** and **MET Norway**. Switching the source automatically updates the forecast for your selected place and changes the visual atmosphere. Both integrations work without API keys.
 
-Search for a city, choose the correct location, and switch between Open-Meteo and MET Norway. The forecast updates automatically for the selected location. No API keys or account setup are required.
+The project is designed to be understood and extended: remote APIs stop at typed adapters, application logic depends on contracts, and the UI consumes one normalized weather model.
 
-<img src="docs/screenshots/open-meteo.png" alt="Open-Meteo with warm colors and a Tbilisi forecast" width="300" /> <img src="docs/screenshots/met-norway.png" alt="MET Norway with a violet theme for the same location" width="300" />
+<p align="center">
+<img src="docs/screenshots/open-meteo.png" width="300" alt="Strata with Open-Meteo's lime identity, an atmospheric weather scene, and an hourly forecast" />
+<img src="docs/screenshots/met-norway.png" width="300" alt="The same selected place with MET Norway's glacier identity and provider-specific measurements" />
+</p>
 
-Mobile-width web previews using live data. Native device verification is listed in the testing checklist.
+Screenshots show the mobile-width web target with live data. They are not native-device test evidence.
 
-## Run locally
+## Start in a minute
 
-Use Node.js 22 LTS and npm. Versions are locked in `package-lock.json`.
+Use Node.js 22 and npm. No environment file, API key, or account is needed.
 
 ```sh
 git clone https://github.com/BeqaDeveloper/strata-weather.git
 cd strata-weather
 npm ci
-npm start
+npm run web
 ```
 
-Open the project in a compatible Expo Go version or a development build. Press `a` for a configured Android emulator. An iOS simulator requires macOS. The app targets Expo SDK 58; Expo Go availability may lag a new SDK release, in which case use a development build.
+Search for a place or select **Explore Tbilisi**, then switch sources. Weather requests happen after a location is selected; typing alone never calls an API.
+
+For a native development build, configure the Android SDK or use macOS with Xcode, then run:
 
 ```sh
 npx expo run:android
 npx expo run:ios
 ```
 
-`npm run web` opens a useful secondary browser preview. Native Android and iOS are the intended platforms. MET Norway requires an identifying request header that browsers control, so localhost browser requests may be blocked by that provider. See [provider documentation](docs/providers.md).
+After installing the development build, `npm run start:dev` starts its server. `npm run start:go` targets Expo Go when its installed version supports SDK 58. Native modules are included in the project; SDK compatibility should be checked before selecting Expo Go.
 
-## What is included
+Android and iOS are the primary targets. Browsers control the User-Agent header, so direct MET requests can depend on the browser origin. Both services were checked successfully in the local browser preview; see [provider integration](docs/providers.md) for deployment requirements.
 
-- Explicit location search with disambiguation, Unicode input validation, and helpful empty states.
-- Two live weather providers, normalized into one domain model.
-- Automatic forecast loading on service changes, with independent caches and cancellation of obsolete requests.
-- Current conditions, local forecast time, humidity, wind, available feels-like temperature, and upcoming forecast points.
-- Provider-specific colors and artwork through presentation descriptors.
-- Accessible controls, scalable text, safe areas, responsive layouts, and retry states.
-- Strict TypeScript, runtime API validation with Zod, ESLint, Prettier, unit tests, and a ready-to-enable GitHub Actions workflow.
-- No application code comments; design decisions and extension instructions live in documentation.
+## What the app does
 
-## Quality checks
+- Resolves international city names and postal codes into explicit location choices.
+- Shows temperature, conditions, humidity, wind, available feels-like measurements, and upcoming forecasts in local time.
+- Changes data and visual identity when the selected service changes.
+- Cancels obsolete requests and isolates cached reports by provider and location.
+- Handles timeouts, invalid payloads, rate limits, provider outages, offline pauses, and recovery.
+- Retains and labels the last available report after a failed refresh.
+- Resumes paused native requests after reconnection and refreshes stale data on foreground return.
+- Provides accessible controls, scalable text, safe areas, and responsive layouts.
+
+There is no silent provider fallback. The selected service remains identifiable, including when it fails. Unsupported measurements and unknown daylight are represented explicitly rather than guessed.
+
+## Architecture you can extend
+
+```text
+App.tsx                         App session and native lifecycle
+src/
+  bootstrap/                    Validated composition and recovery boundary
+  domain/                       Provider contracts, weather model, validation, errors
+  application/                  Search, selection, query identity, retry policy
+  infrastructure/
+    http/                       Abortable transport, freshness cache, diagnostics
+    location/                   Geocoding adapter
+    providers/                  Weather API decoders and unit normalization
+  presentation/                 Weather experience, vector scene, forecast geometry
+  platform/                     Native focus and connectivity integration
+  shared/
+    ui/                         Reused controls, notices, and visual tokens
+    observability/              Typed logger, privacy filtering, replaceable sink
+```
+
+Dependencies point toward the domain. `bootstrap/createApplication.ts` is the only place that pairs concrete weather adapters with presentation definitions. The catalog rejects duplicate IDs, mismatched themes, and invalid defaults before the screen runs. ESLint enforces the module boundaries.
+
+To replace a service, implement `WeatherProvider`, validate and normalize its response, define its visual presentation, and register that pair in the composition root. Search, source switching, cache isolation, and weather components stay reusable. See the [replacement guide](docs/providers.md).
+
+Shared code has a specific purpose: `ActionButton`, `IconButton`, `StatusNotice`, visual tokens, and the structured logger are reused building blocks. Weather-specific calculations stay beside the feature; there is no catch-all utilities module.
+
+## Decisions that matter
+
+**Server state has one owner.** TanStack Query manages requests and caches. React state manages editable input and selection. A separate global state framework would add coordination without solving a requirement here.
+
+**Rendering follows data changes.** The expensive weather card, vector scene, and forecast section are memoized. Stable controller actions let input edits update the search UI without redrawing the weather scene. Render-isolation tests verify that behavior. There are no animation loops, remote artwork requests, or invented chart values.
+
+**Failures are part of the model.** Known transport failures have stable error codes and a bounded retry policy. Unexpected defects remain distinct from network errors. Malformed cached responses are evicted so a subsequent retry can recover. The application boundary keeps unexpected render failures recoverable.
+
+**Logging has an explicit boundary.** Development logs expose allowlisted event names, endpoint categories, durations, statuses, and failure codes. They exclude search terms, coordinates, URLs, payloads, headers, exception messages, and stacks. Production defaults to a silent sink; a reporting adapter can be injected without changing features. Reporting failures cannot break weather requests.
+
+**Capabilities stay honest.** Feels-like and daylight can be absent. MET's missing measurements are not estimated just to fill the interface. The forecast trace uses the actual spacing between timestamps, including uneven forecast intervals.
+
+Read [architecture and engineering](docs/architecture.md) for dependency rules, lifecycles, rendering decisions, logging integration, and extension examples.
+
+## Verify the project
 
 ```sh
 npm run check
-npx expo-doctor
+npm run doctor
 npm run export:all
 ```
 
-`check` runs TypeScript, lint, formatting, and unit tests with coverage thresholds. Test requests use injected services or mocked HTTP responses; they never depend on external weather availability. See [testing](docs/testing.md) for the test strategy and device checklist.
+`check` runs strict TypeScript, ESLint, formatting, and offline unit tests with coverage gates. The suite covers provider decoding, request cancellation, cache recovery, source switching, offline resumption, configuration invariants, safe logging, rendering isolation, and UI interactions. See [testing](docs/testing.md) and the [verification record](docs/verification.md) for current results and device-testing limits.
 
-Known upstream tooling advisories and their dependency paths are documented in [SECURITY.md](SECURITY.md).
+Independent agent architecture and privacy reviews informed this revision. Findings led to concrete fixes for registration consistency, malformed cache recovery, offline states, daylight truthfulness, and reporting resilience. This describes the review process; it is not a claim of human certification.
 
-The [verification record](docs/verification.md) lists the completed checks and platform limits.
+## Documentation
 
-The [CI workflow](docs/ci.workflow.yml) runs these same checks on GitHub. Activation requires workflow write access, which the publishing credentials did not have; see [enabling CI](docs/ci.md).
+- [Architecture and engineering](docs/architecture.md) — boundaries, rendering, lifecycle, and observability.
+- [Provider integration](docs/providers.md) — add or replace an API, capabilities, caching, and attribution.
+- [Testing](docs/testing.md) — commands, behaviors to preserve, and device checklist.
+- [Verification](docs/verification.md) — completed checks and known limits.
+- [CI setup](docs/ci.md) — the ready-to-enable workflow; kept as a template by the repository owner's choice.
+- [Security](SECURITY.md) — privacy, upstream tooling advisories, and reporting.
+- [Contributing](CONTRIBUTING.md) — naming, boundaries, and change requirements.
 
-## Structure
+## Scope and license
 
-```text
-App.tsx
-src/
-  domain/
-  application/
-  infrastructure/
-    http/
-    location/
-    providers/
-  presentation/
-docs/
-```
+Values are model forecasts. Temperatures use Celsius and wind uses km/h. Data is held in memory for the current session. Saved places, device geolocation, background polling, and signed store releases are outside this implementation.
 
-The domain defines plain TypeScript contracts. Infrastructure translates remote APIs into those contracts. The application layer coordinates search, selection, requests, and cache lifetimes. Presentation renders provider-independent weather data using a selected visual scheme. Dependency construction is centralized in `src/application/createDependencies.ts`.
-
-Read [architecture](docs/architecture.md) for boundaries, failure behavior, and the rationale behind the main choices. Read [providers](docs/providers.md) to add or replace a service without rewriting the screen.
-
-## Scope
-
-Weather values are forecasts, not guaranteed observations. All temperatures use Celsius and wind uses km/h. Optional measurements are omitted when a provider cannot supply them. Locations and forecasts are held in memory for the current session; persistence, device geolocation, and background refresh are intentionally outside this assignment.
-
-The public Open-Meteo endpoint is intended for non-commercial evaluation under its current terms. Commercial deployment needs a suitable service plan and review of both providers’ terms. Weather data and location datasets retain their own attribution requirements; the source attribution is shown in the app.
-
-## License
-
-Application code is MIT licensed. Weather data is attributed to [Open-Meteo](https://open-meteo.com/), [MET Norway](https://api.met.no/doc/License), and location data to [GeoNames](https://www.geonames.org/), accessed through Open-Meteo’s geocoding API.
+Application code is MIT licensed. Weather and location data keep their own attribution and service terms. Open-Meteo's free API is intended for non-commercial evaluation; review the [provider terms](docs/providers.md#licensing-and-deployment) before commercial distribution. Known upstream Expo tooling advisories are documented in [SECURITY.md](SECURITY.md).

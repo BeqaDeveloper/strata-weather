@@ -61,11 +61,13 @@ export function createMetNorwayProvider(http: HttpClient): WeatherProvider {
           },
         }),
       );
-      if (!result.success)
+      if (!result.success) {
+        http.invalidate(url);
         throw new WeatherError(
           'invalid-response',
           'MET Norway returned incomplete weather data. Try the other service.',
         );
+      }
       const entries = result.data.properties.timeseries;
       const current = entries[0];
       if (!current)
@@ -83,7 +85,7 @@ export function createMetNorwayProvider(http: HttpClient): WeatherProvider {
         humidityPercent: details.relative_humidity,
         windSpeedKmh: Math.round(details.wind_speed * 36) / 10,
         condition: conditionFromMetSymbol(symbol),
-        isDay: !symbol.endsWith('_night'),
+        isDay: daylightFromSymbol(symbol),
         hourly: entries.slice(1, 7).map((entry) => ({
           timestamp: entry.time,
           temperatureCelsius: entry.data.instant.details.air_temperature,

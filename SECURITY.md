@@ -2,6 +2,8 @@
 
 This app contains no credentials, location permissions, analytics, or authentication. Location search terms and selected coordinates are transmitted over HTTPS to the providers documented in `docs/providers.md`. In-memory caches are cleared when the process ends. Runtime weather payloads are validated before reaching the UI.
 
+Application logging is explicit and privacy filtered. The typed logger reconstructs allowlisted fields, excludes URLs, coordinates, search terms, payloads, headers, and exception details, and isolates reporting failures. Development uses a console sink; production is silent unless an external reporting adapter is deliberately injected. Framework and developer-tool logs are outside this application logger's contract.
+
 ## Dependency audit: 26 October 2026
 
 `npm audit` reports five high-severity package findings arising from two underlying advisories in Expo SDK 58’s tooling dependency chain:

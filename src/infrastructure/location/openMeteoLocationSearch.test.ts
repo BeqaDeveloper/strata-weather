@@ -18,7 +18,10 @@ describe('Open-Meteo location search', () => {
         { id: 2, name: 'Paris', latitude: 33.66, longitude: -95.55 },
       ],
     });
-    const locations = await createLocationSearch({ get }).search('  Paris  ', signal);
+    const locations = await createLocationSearch({ get, invalidate: jest.fn() }).search(
+      '  Paris  ',
+      signal,
+    );
     expect(locations).toHaveLength(2);
     expect(locations[0]).toMatchObject({
       id: '1',
@@ -31,16 +34,18 @@ describe('Open-Meteo location search', () => {
 
   it('returns an empty result for an unknown location', async () => {
     expect(
-      await createLocationSearch({ get: jest.fn().mockResolvedValue({}) }).search(
-        'Noplacexyz',
-        signal,
-      ),
+      await createLocationSearch({
+        invalidate: jest.fn(),
+        get: jest.fn().mockResolvedValue({}),
+      }).search('Noplacexyz', signal),
     ).toEqual([]);
   });
 
   it('rejects invalid queries before making a request', async () => {
     const get = jest.fn();
-    await expect(createLocationSearch({ get }).search('<script>', signal)).rejects.toMatchObject({
+    await expect(
+      createLocationSearch({ get, invalidate: jest.fn() }).search('<script>', signal),
+    ).rejects.toMatchObject({
       code: 'invalid-response',
     });
     expect(get).not.toHaveBeenCalled();
@@ -50,7 +55,9 @@ describe('Open-Meteo location search', () => {
     const get = jest
       .fn()
       .mockResolvedValue({ results: [{ id: 1, name: 'Paris', latitude: 200, longitude: 2 }] });
-    await expect(createLocationSearch({ get }).search('Paris', signal)).rejects.toMatchObject({
+    await expect(
+      createLocationSearch({ get, invalidate: jest.fn() }).search('Paris', signal),
+    ).rejects.toMatchObject({
       code: 'invalid-response',
     });
   });
@@ -61,6 +68,9 @@ describe('Open-Meteo location search', () => {
         { id: 1, name: 'Paris', latitude: 48.85, longitude: 2.35, timezone: 'invalid/zone' },
       ],
     });
-    expect((await createLocationSearch({ get }).search('Paris', signal))[0]?.timezone).toBe('UTC');
+    expect(
+      (await createLocationSearch({ get, invalidate: jest.fn() }).search('Paris', signal))[0]
+        ?.timezone,
+    ).toBe('UTC');
   });
 });

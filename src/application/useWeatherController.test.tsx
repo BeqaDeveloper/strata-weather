@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 import type { PropsWithChildren } from 'react';
 
@@ -9,7 +9,8 @@ import type {
   WeatherProvider,
   WeatherReport,
 } from '../domain/weather';
-import { shouldRetryRequest, useWeatherController } from './useWeatherController';
+import { shouldRetryRequest } from './queryPolicy';
+import { useWeatherController } from './useWeatherController';
 
 const tbilisi: WeatherLocation = {
   id: '611717',
@@ -83,27 +84,77 @@ async function setup() {
   function Wrapper({ children }: PropsWithChildren) {
     return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
   }
-  const hook = await renderHook(
-    () =>
-      useWeatherController({
-        providers: new Map<string, WeatherProvider>([
-          [first.id, first],
-          [second.id, second],
-        ]),
-        locationSearch,
-        initialProviderId: first.id,
-      }),
-    { wrapper: Wrapper },
-  );
+  const dependencies = {
+    providers: new Map<string, WeatherProvider>([
+      [first.id, first],
+      [second.id, second],
+    ]),
+    locationSearch,
+    initialProviderId: first.id,
+  };
+  const hook = await renderHook(() => useWeatherController(dependencies), { wrapper: Wrapper });
   return { ...hook, first, second, locationSearch };
 }
 
 afterEach(() => {
+  onlineManager.setOnline(true);
   for (const client of clients) client.clear();
   clients.length = 0;
 });
 
 describe('useWeatherController', () => {
+  it('keeps weather actions stable while the search input changes', async () => {
+    const { result } = await setup();
+    await act(() => result.current.onSelectLocation(tbilisi));
+    await waitFor(() => expect(result.current.weather).toBeDefined());
+    const previous = result.current;
+    await act(() => result.current.onChangeQuery('London'));
+    expect(result.current.onRefresh).toBe(previous.onRefresh);
+    expect(result.current.onSelectProvider).toBe(previous.onSelectProvider);
+    expect(result.current.onSelectLocation).toBe(previous.onSelectLocation);
+    expect(result.current.weather).toBe(previous.weather);
+  });
+
+  it('explains a paused offline lookup and resumes when connected', async () => {
+    const { result, locationSearch } = await setup();
+    await act(() => onlineManager.setOnline(false));
+    await act(() => result.current.onChangeQuery('Tbilisi'));
+    await act(() => result.current.onSearch());
+    await waitFor(() => expect(result.current.searchError).toContain('offline'));
+    expect(result.current.isSearching).toBe(false);
+    expect(locationSearch.search).not.toHaveBeenCalled();
+    await act(() => onlineManager.setOnline(true));
+    await waitFor(() => expect(result.current.locations).toEqual([tbilisi]));
+    expect(result.current.searchError).toBeNull();
+  });
+
+  it('shows a paused offline forecast without an endless spinner and recovers', async () => {
+    const { result, first } = await setup();
+    await act(() => onlineManager.setOnline(false));
+    await act(() => result.current.onSelectLocation(tbilisi));
+    await waitFor(() => expect(result.current.weatherError).toContain('offline'));
+    expect(result.current.isLoading).toBe(false);
+    expect(first.getWeather).not.toHaveBeenCalled();
+    await act(() => result.current.onRefresh());
+    expect(first.getWeather).not.toHaveBeenCalled();
+    await act(() => onlineManager.setOnline(true));
+    await waitFor(() => expect(result.current.weather?.providerId).toBe('open-meteo'));
+    expect(result.current.weatherError).toBeNull();
+  });
+
+  it('retains the previous report during an offline refresh', async () => {
+    const { result } = await setup();
+    await act(() => result.current.onSelectLocation(tbilisi));
+    await waitFor(() => expect(result.current.weather).toBeDefined());
+    const previous = result.current.weather;
+    await act(() => onlineManager.setOnline(false));
+    await act(() => result.current.onRefresh());
+    await waitFor(() => expect(result.current.weatherError).toContain('offline'));
+    expect(result.current.weather).toBe(previous);
+    expect(result.current.isRefreshing).toBe(false);
+    await act(() => onlineManager.setOnline(true));
+    await waitFor(() => expect(result.current.weatherError).toBeNull());
+  });
   it('starts idle and allows selecting a service before choosing a location', async () => {
     const { result, first, second, locationSearch } = await setup();
     expect(result.current.location).toBeNull();

@@ -1,10 +1,14 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import type * as ReactModule from 'react';
 import type * as ReactNativeModule from 'react-native';
+import { Alert, Linking } from 'react-native';
 
 import type { WeatherLocation, WeatherReport } from '../domain/weather';
 import { PROVIDER_PRESENTATIONS } from './providers';
 import { WeatherScreen, type WeatherScreenProps } from './WeatherScreen';
+import { WeatherScene } from './WeatherScene';
+
+jest.mock('./WeatherScene', () => ({ WeatherScene: jest.fn(() => null) }));
 
 jest.mock('@expo/vector-icons/Feather', () => {
   const { createElement } = jest.requireActual<typeof ReactModule>('react');
@@ -68,6 +72,56 @@ function createProps(overrides: Partial<WeatherScreenProps> = {}): WeatherScreen
 }
 
 describe('WeatherScreen', () => {
+  it('opens source attribution and both location-data credits', async () => {
+    const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+    await render(<WeatherScreen {...createProps({ location, weather })} />);
+    await fireEvent.press(screen.getByText(weather.attribution));
+    expect(open).toHaveBeenLastCalledWith(weather.attributionUrl);
+    await fireEvent.press(screen.getByRole('link', { name: 'Location search by Open-Meteo' }));
+    expect(open).toHaveBeenLastCalledWith('https://open-meteo.com/en/docs/geocoding-api');
+    await fireEvent.press(screen.getByRole('link', { name: 'Location data by GeoNames' }));
+    expect(open).toHaveBeenLastCalledWith('https://www.geonames.org/');
+  });
+
+  it('shows useful feedback when the platform cannot open an attribution link', async () => {
+    jest.spyOn(Linking, 'openURL').mockRejectedValue(new Error('No link handler'));
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    await render(<WeatherScreen {...createProps({ location, weather })} />);
+    await fireEvent.press(screen.getByText(weather.attribution));
+    await waitFor(() =>
+      expect(alert).toHaveBeenCalledWith('Unable to open this link', 'Please try again later.'),
+    );
+  });
+
+  it('renders multiple accessible forecast readings alongside the real trace', async () => {
+    await render(
+      <WeatherScreen
+        {...createProps({
+          location,
+          weather: {
+            ...weather,
+            hourly: [
+              {
+                timestamp: '2026-10-26T13:00:00Z',
+                temperatureCelsius: 20,
+                condition: 'cloudy',
+                isDay: true,
+              },
+              {
+                timestamp: '2026-10-26T16:00:00Z',
+                temperatureCelsius: 18,
+                condition: 'clear',
+                isDay: false,
+              },
+            ],
+          },
+        })}
+      />,
+    );
+    expect(screen.getByLabelText('5:00 PM, 20 degrees Celsius, Cloudy')).toBeOnTheScreen();
+    expect(screen.getByLabelText('8:00 PM, 18 degrees Celsius, Clear skies')).toBeOnTheScreen();
+  });
+
   it('selects a service and adapts its visual theme from provider metadata', async () => {
     const props = createProps();
     const view = await render(<WeatherScreen {...props} />);
@@ -76,7 +130,7 @@ describe('WeatherScreen', () => {
     await view.rerender(<WeatherScreen {...props} selectedProviderId="met-norway" />);
     expect(screen.getByRole('radio', { name: 'MET Norway' })).toBeChecked();
     expect(screen.getByRole('radio', { name: 'MET Norway' })).toHaveStyle({
-      backgroundColor: PROVIDER_PRESENTATIONS[1].surface,
+      backgroundColor: PROVIDER_PRESENTATIONS[1].accent,
     });
     expect(screen.getByText(PROVIDER_PRESENTATIONS[1].description)).toBeOnTheScreen();
   });
@@ -162,5 +216,28 @@ describe('WeatherScreen', () => {
     expect(screen.queryByText('Humidity')).toBeNull();
     await fireEvent.press(screen.getByRole('button', { name: 'Try Tbilisi' }));
     expect(props.onSelectLocation).toHaveBeenCalledWith(location);
+  });
+
+  it('does not claim daylight or darkness when the provider cannot supply it', async () => {
+    await render(
+      <WeatherScreen {...createProps({ location, weather: { ...weather, isDay: null } })} />,
+    );
+    expect(screen.getByText('FORECAST')).toBeOnTheScreen();
+    expect(screen.queryByText('DAYLIGHT')).toBeNull();
+    expect(screen.queryByText('AFTER DARK')).toBeNull();
+  });
+
+  it('keeps expensive forecast artwork out of search-input renders', async () => {
+    const props = createProps({ location, weather });
+    const view = await render(<WeatherScreen {...props} />);
+    const initialRenders = jest.mocked(WeatherScene).mock.calls.length;
+    expect(initialRenders).toBeGreaterThan(0);
+    await view.rerender(<WeatherScreen {...props} query="Lo" />);
+    await view.rerender(<WeatherScreen {...props} query="London" />);
+    expect(jest.mocked(WeatherScene).mock.calls.length).toBe(initialRenders);
+    await view.rerender(
+      <WeatherScreen {...props} query="London" weather={{ ...weather, temperatureCelsius: 22 }} />,
+    );
+    expect(jest.mocked(WeatherScene).mock.calls.length).toBeGreaterThan(initialRenders);
   });
 });

@@ -1,9 +1,10 @@
 {
   "name": "strata-weather",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "main": "index.ts",
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
+    "@react-native-community/netinfo": "12.0.1",
     "@tanstack/react-query": "^5.105.0",
     "expo": "~58.0.19",
     "expo-dev-client": "~58.0.15",
@@ -13,19 +14,21 @@
     "react-dom": "19.3.0",
     "react-native": "0.88.0",
     "react-native-safe-area-context": "~5.10.1",
+    "react-native-svg": "15.16.0",
     "react-native-web": "^0.21.4",
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@types/react": "~19.3.0",
-    "typescript": "~6.0.3",
     "@testing-library/react-native": "14.1.0",
+    "@types/jest": "30.0.0",
+    "@types/react": "~19.3.0",
     "eslint": "^9.39.5",
-    "prettier": "^3.8.3",
+    "eslint-config-expo": "~58.0.4",
+    "expo-doctor": "^1.21.5",
     "jest": "~30.5.2",
     "jest-expo": "~58.0.12",
-    "@types/jest": "30.0.0",
-    "eslint-config-expo": "~58.0.4"
+    "prettier": "^3.8.3",
+    "typescript": "~6.0.3"
   },
   "scripts": {
     "start": "expo start",
@@ -40,7 +43,10 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage --runInBand",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm run test:coverage",
-    "export:all": "expo export --platform all"
+    "export:all": "expo export --platform all",
+    "start:go": "expo start --go",
+    "start:dev": "expo start --dev-client",
+    "doctor": "expo-doctor"
   },
   "private": true,
   "description": "A modular React Native weather app with two interchangeable providers, accessible themes, and tested request lifecycles.",

@@ -2,9 +2,9 @@
   "expo": {
     "name": "Strata Weather",
     "slug": "strata-weather",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
-    "description": "A little clarity, whatever the weather. Compare global forecasts from two weather services.",
+    "description": "Weather, in perspective. Two forecast sources with a distinctive atmospheric experience.",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
@@ -14,7 +14,7 @@
     "android": {
       "package": "com.beqadeveloper.strataweather",
       "adaptiveIcon": {
-        "backgroundColor": "#F5F2EB",
+        "backgroundColor": "#121C18",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"

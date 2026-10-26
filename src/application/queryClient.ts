@@ -1,13 +1,31 @@
-import { QueryClient } from '@tanstack/react-query';
+import { QueryCache, QueryClient } from '@tanstack/react-query';
 
-export function createQueryClient() {
+import { toWeatherError } from '../domain/errors';
+import { silentLogger, writeLogSafely, type Logger } from '../shared/observability/logger';
+import { QUERY_POLICY, shouldRetryRequest } from './queryPolicy';
+
+export function createQueryClient(logger: Logger = silentLogger) {
   return new QueryClient({
+    queryCache: new QueryCache({
+      onError: (error, query) => {
+        const failure = toWeatherError(error);
+        const operation = query.meta?.operation;
+        writeLogSafely(logger, {
+          event: 'query.failed',
+          operation:
+            operation === 'weather' || operation === 'location-search' ? operation : 'unknown',
+          errorCode: failure.code,
+          retryable: failure.retryable,
+        });
+      },
+    }),
     defaultOptions: {
       queries: {
-        gcTime: 15 * 60 * 1000,
-        refetchOnWindowFocus: false,
+        gcTime: QUERY_POLICY.inactiveRetentionMs,
+        refetchOnWindowFocus: true,
         refetchOnReconnect: true,
-        retryDelay: 1000,
+        retry: shouldRetryRequest,
+        retryDelay: QUERY_POLICY.retryDelayMs,
       },
     },
   });

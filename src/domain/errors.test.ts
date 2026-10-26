@@ -9,8 +9,8 @@ describe('toWeatherError', () => {
 
   it('maps unknown failures to a safe actionable message', () => {
     expect(toWeatherError(new Error('private transport details'))).toMatchObject({
-      code: 'network',
-      retryable: true,
+      code: 'unexpected',
+      retryable: false,
     });
     expect(toWeatherError(null).message).not.toContain('private');
   });

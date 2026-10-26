@@ -1,24 +1,14 @@
 import Feather from '@expo/vector-icons/Feather';
-import type { ComponentProps } from 'react';
-import {
-  ActivityIndicator,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { memo, type ComponentProps } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 
 import type { WeatherReport } from '../domain/weather';
-import {
-  CONDITION_LABELS,
-  formatLocalTime,
-  formatLocationDetails,
-  formatTemperature,
-} from './formatting';
+import { IconButton } from '../shared/ui/IconButton';
+import { colors, typography } from '../shared/ui/tokens';
+import { CONDITION_LABELS, formatLocalTime, formatTemperature } from './formatting';
+import { HourlyForecast } from './HourlyForecast';
 import type { ProviderDefinition } from './providers';
-import { WeatherGlyph } from './WeatherGlyph';
+import { WeatherScene } from './WeatherScene';
 
 interface WeatherCardProps {
   readonly weather: WeatherReport;
@@ -32,258 +22,183 @@ interface MetricProps {
   readonly icon: ComponentProps<typeof Feather>['name'];
   readonly label: string;
   readonly value: string;
-  readonly ink: string;
-  readonly accent: string;
+  readonly unit?: string;
 }
 
-function Metric({ icon, label, value, ink, accent }: MetricProps) {
+function Metric({ icon, label, value, unit }: MetricProps) {
   return (
     <View style={styles.metric}>
-      <Feather name={icon} color={accent} size={20} accessible={false} />
-      <Text style={[styles.metricValue, { color: ink }]}>{value}</Text>
+      <Feather name={icon} color={colors.muted} size={18} accessible={false} />
+      <View style={styles.metricReading}>
+        <Text style={styles.metricValue}>{value}</Text>
+        {unit ? <Text style={styles.metricUnit}>{unit}</Text> : null}
+      </View>
       <Text style={styles.metricLabel}>{label}</Text>
     </View>
   );
 }
 
-export function WeatherCard({
+export const WeatherCard = memo(function WeatherCard({
   weather,
   provider,
   isRefreshing,
   isStale,
   onRefresh,
 }: WeatherCardProps) {
-  const { accent, ink, surface } = provider;
   return (
     <View style={styles.container}>
-      <View style={[styles.hero, { backgroundColor: surface }]}>
-        <View style={styles.heroHeading}>
+      <View style={styles.hero}>
+        <WeatherScene
+          accent={provider.accent}
+          sceneColor={provider.sceneColor}
+          condition={weather.condition}
+          isDay={weather.isDay}
+        />
+        <View style={styles.heroTop}>
           <View style={styles.sourceBadge}>
-            <View style={[styles.sourceDot, { backgroundColor: accent }]} />
-            <Text style={[styles.sourceName, { color: ink }]}>{provider.name}</Text>
+            <View style={[styles.sourceDot, { backgroundColor: provider.accent }]} />
+            <Text style={styles.sourceName}>{provider.name}</Text>
           </View>
-          <Pressable
-            accessibilityLabel="Refresh weather"
-            accessibilityRole="button"
-            accessibilityState={{ disabled: isRefreshing, busy: isRefreshing }}
-            disabled={isRefreshing}
+          <IconButton
+            label="Refresh weather"
+            icon="rotate-cw"
             onPress={onRefresh}
-            style={({ pressed }) => [styles.refreshButton, pressed && styles.pressed]}
-          >
-            {isRefreshing ? (
-              <ActivityIndicator color={ink} size="small" />
-            ) : (
-              <Feather name="refresh-cw" size={18} color={ink} accessible={false} />
-            )}
-          </Pressable>
+            busy={isRefreshing}
+            color="#E7EFDF"
+            backgroundColor="#FFFFFF12"
+          />
         </View>
-        <Text accessibilityRole="header" style={[styles.city, { color: ink }]}>
-          {weather.location.name}
-        </Text>
-        <Text style={styles.locationDetails}>{formatLocationDetails(weather.location)}</Text>
-        <View style={styles.temperatureRow}>
-          <View style={styles.temperatureGroup}>
+        <View style={styles.reading}>
+          <Text style={styles.micro}>CURRENT CONDITIONS</Text>
+          <View style={styles.temperatureRow}>
             <Text
               accessibilityLabel={`${Math.round(weather.temperatureCelsius)} degrees Celsius`}
-              style={[styles.temperature, { color: ink }]}
+              style={styles.temperature}
             >
               {formatTemperature(weather.temperatureCelsius)}
             </Text>
-            <Text style={[styles.unit, { color: ink }]}>C</Text>
+            <Text style={[styles.unit, { color: provider.accent }]}>C</Text>
           </View>
-          <View style={styles.heroGlyph}>
-            <View style={[styles.glyphOrbit, { borderColor: accent }]} />
-            <WeatherGlyph
-              condition={weather.condition}
-              color={accent}
-              isDay={weather.isDay}
-              size={70}
-            />
-          </View>
+          <Text style={styles.condition}>{CONDITION_LABELS[weather.condition]}</Text>
         </View>
-        <Text style={[styles.condition, { color: ink }]}>
-          {CONDITION_LABELS[weather.condition]}
-        </Text>
-        <View style={styles.timestampRow}>
-          <Feather name="clock" size={12} color="#5F6964" accessible={false} />
-          <Text style={styles.timestamp}>
-            {isStale ? 'Last available' : 'Data time'} ·{' '}
-            {formatLocalTime(weather.timestamp, weather.location.timezone)} local
+        <View style={styles.heroBottom}>
+          <View style={styles.dataTime}>
+            <Feather name="clock" size={12} color={colors.nightMuted} accessible={false} />
+            <Text style={styles.timestamp}>
+              {isStale ? 'Last available' : 'Data time'} ·{' '}
+              {formatLocalTime(weather.timestamp, weather.location.timezone)} local
+            </Text>
+          </View>
+          <Text style={[styles.dayNight, { color: provider.accent }]}>
+            {weather.isDay === null ? 'FORECAST' : weather.isDay ? 'DAYLIGHT' : 'AFTER DARK'}
           </Text>
         </View>
       </View>
-
       <View style={styles.metrics}>
         <Metric
           icon="wind"
           label="Wind · km/h"
           value={`${Math.round(weather.windSpeedKmh)}`}
-          ink={ink}
-          accent={accent}
+          unit="km/h"
         />
         <Metric
           icon="droplet"
           label="Humidity"
-          value={`${Math.round(weather.humidityPercent)}%`}
-          ink={ink}
-          accent={accent}
+          value={`${Math.round(weather.humidityPercent)}`}
+          unit="%"
         />
         {weather.feelsLikeCelsius !== null ? (
           <Metric
             icon="thermometer"
             label="Feels like · °C"
             value={formatTemperature(weather.feelsLikeCelsius)}
-            ink={ink}
-            accent={accent}
           />
         ) : null}
       </View>
-
-      {weather.hourly.length > 0 ? (
-        <View style={styles.forecast}>
-          <View style={styles.forecastHeading}>
-            <Text accessibilityRole="header" style={[styles.forecastTitle, { color: ink }]}>
-              The hours ahead
-            </Text>
-            <Text style={styles.forecastUnit}>°C · LOCAL TIME</Text>
-          </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.hours}
-          >
-            {weather.hourly.map((hour) => (
-              <View
-                accessible
-                accessibilityLabel={`${formatLocalTime(hour.timestamp, weather.location.timezone)}, ${Math.round(hour.temperatureCelsius)} degrees Celsius, ${CONDITION_LABELS[hour.condition]}`}
-                key={hour.timestamp}
-                style={styles.hour}
-              >
-                <Text style={styles.hourTime}>
-                  {formatLocalTime(hour.timestamp, weather.location.timezone)}
-                </Text>
-                <WeatherGlyph condition={hour.condition} color={accent} isDay={hour.isDay} />
-                <Text style={[styles.hourTemperature, { color: ink }]}>
-                  {formatTemperature(hour.temperatureCelsius)}
-                </Text>
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-      ) : null}
+      <HourlyForecast
+        hours={weather.hourly}
+        timezone={weather.location.timezone}
+        accent={provider.accent}
+      />
     </View>
   );
-}
-
-const serif = Platform.select({ ios: 'Georgia', android: 'serif', default: 'Georgia' });
+});
 
 const styles = StyleSheet.create({
-  container: { gap: 16 },
-  hero: { borderRadius: 26, overflow: 'hidden', padding: 24 },
-  heroHeading: {
+  container: { gap: 23 },
+  hero: { backgroundColor: colors.night, borderRadius: 30, overflow: 'hidden', padding: 24 },
+  heroTop: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 22,
   },
-  sourceBadge: {
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF99',
-    borderRadius: 20,
-    flexDirection: 'row',
-    gap: 7,
-    paddingHorizontal: 11,
-    paddingVertical: 8,
-  },
+  sourceBadge: { alignItems: 'center', flexDirection: 'row', gap: 8 },
   sourceDot: { borderRadius: 3, height: 6, width: 6 },
-  sourceName: { fontSize: 11, fontWeight: '600' },
-  refreshButton: {
-    alignItems: 'center',
-    borderColor: '#FFFFFFAA',
-    borderRadius: 24,
-    borderWidth: 1,
-    justifyContent: 'center',
-    minHeight: 44,
-    minWidth: 44,
+  sourceName: { color: '#EBF2E6', fontFamily: typography.mono, fontSize: 11, letterSpacing: 0.3 },
+  micro: {
+    color: colors.nightMuted,
+    fontFamily: typography.mono,
+    fontSize: 9,
+    letterSpacing: 1.2,
+    lineHeight: 17,
   },
-  city: { fontFamily: serif, fontSize: 34, letterSpacing: -0.8 },
-  locationDetails: { color: '#5F6964', fontSize: 13, lineHeight: 21, marginTop: 3 },
+  reading: { paddingTop: 12 },
   temperatureRow: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginLeft: -5,
+    marginTop: 4,
+  },
+  temperature: {
+    color: '#F7FAF0',
+    fontSize: 110,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '500',
+    letterSpacing: -9,
+    lineHeight: 127,
+  },
+  unit: { fontFamily: typography.mono, fontSize: 20, marginLeft: 8, marginTop: 25 },
+  condition: {
+    color: '#F4F8EB',
+    fontSize: 27,
+    fontWeight: '400',
+    letterSpacing: -1,
+    lineHeight: 36,
+    marginBottom: 26,
+    marginTop: 1,
+  },
+  heroBottom: {
     alignItems: 'center',
+    borderTopColor: '#FFFFFF20',
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    justifyContent: 'space-between',
+    paddingTop: 17,
+  },
+  dataTime: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  timestamp: { color: colors.nightMuted, fontSize: 10, lineHeight: 17 },
+  dayNight: { fontFamily: typography.mono, fontSize: 8, letterSpacing: 0.6 },
+  metrics: {
+    borderBottomColor: colors.line,
+    borderBottomWidth: 1,
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
-    justifyContent: 'space-between',
-    marginVertical: 12,
+    paddingBottom: 23,
   },
-  temperatureGroup: { alignItems: 'flex-start', flexDirection: 'row' },
-  temperature: {
-    fontSize: 96,
-    fontWeight: '300',
-    letterSpacing: -7,
-    lineHeight: 114,
+  metric: { flex: 1, gap: 9, minWidth: 80 },
+  metricReading: { alignItems: 'baseline', flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+  metricValue: {
+    color: colors.ink,
+    fontSize: 29,
     fontVariant: ['tabular-nums'],
+    fontWeight: '500',
+    letterSpacing: -1.1,
   },
-  unit: { fontSize: 19, fontWeight: '500', marginLeft: 5, marginTop: 25 },
-  heroGlyph: {
-    alignItems: 'center',
-    height: 104,
-    justifyContent: 'center',
-    marginRight: 3,
-    width: 104,
-  },
-  glyphOrbit: {
-    borderRadius: 52,
-    borderStyle: 'dashed',
-    borderWidth: 1,
-    height: 104,
-    opacity: 0.28,
-    position: 'absolute',
-    width: 104,
-  },
-  condition: { fontFamily: serif, fontSize: 25, letterSpacing: -0.3, marginBottom: 10 },
-  timestampRow: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  timestamp: { color: '#5F6964', fontSize: 11, lineHeight: 17 },
-  metrics: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E2E1D9',
-    borderRadius: 18,
-    borderWidth: 1,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingVertical: 20,
-  },
-  metric: {
-    alignItems: 'center',
-    flex: 1,
-    gap: 8,
-    minWidth: 90,
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-  },
-  metricValue: { fontSize: 25, fontWeight: '500', fontVariant: ['tabular-nums'] },
-  metricLabel: { color: '#626E69', fontSize: 11, textAlign: 'center' },
-  forecast: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E2E1D9',
-    borderRadius: 18,
-    borderWidth: 1,
-    paddingVertical: 22,
-  },
-  forecastHeading: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    justifyContent: 'space-between',
-    marginBottom: 23,
-    paddingHorizontal: 20,
-  },
-  forecastTitle: { fontFamily: serif, fontSize: 22, letterSpacing: -0.3 },
-  forecastUnit: { color: '#626E69', fontSize: 9, fontWeight: '600', letterSpacing: 1.2 },
-  hours: { gap: 5, paddingHorizontal: 12 },
-  hour: { alignItems: 'center', gap: 16, minWidth: 73, paddingHorizontal: 6 },
-  hourTime: { color: '#626E69', fontSize: 11 },
-  hourTemperature: { fontSize: 20, fontWeight: '500' },
-  pressed: { opacity: 0.65 },
+  metricUnit: { color: colors.muted, fontFamily: typography.mono, fontSize: 11 },
+  metricLabel: { color: colors.muted, fontSize: 11, lineHeight: 17 },
 });

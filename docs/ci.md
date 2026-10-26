@@ -23,3 +23,5 @@ git push
 ```
 
 The first push activates the workflow. Until activation, automated checks have passed locally as recorded in [verification](verification.md); no successful GitHub Actions run is claimed.
+
+The repository owner has chosen to keep this workflow as a template. Activation is an optional future repository change.

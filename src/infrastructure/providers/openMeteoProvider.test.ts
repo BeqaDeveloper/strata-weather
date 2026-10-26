@@ -7,7 +7,10 @@ describe('Open-Meteo adapter', () => {
 
   it('normalizes canonical units and selects the next six future hours', async () => {
     const get = jest.fn().mockResolvedValue(openMeteoFixture());
-    const report = await createOpenMeteoProvider({ get }).getWeather(testLocation, signal);
+    const report = await createOpenMeteoProvider({ get, invalidate: jest.fn() }).getWeather(
+      testLocation,
+      signal,
+    );
     expect(report).toMatchObject({
       providerId: 'open-meteo',
       location: testLocation,
@@ -37,7 +40,10 @@ describe('Open-Meteo adapter', () => {
     const response = openMeteoFixture();
     response.hourly.temperature_2m[1] = null;
     const get = jest.fn().mockResolvedValue(response);
-    const report = await createOpenMeteoProvider({ get }).getWeather(testLocation, signal);
+    const report = await createOpenMeteoProvider({ get, invalidate: jest.fn() }).getWeather(
+      testLocation,
+      signal,
+    );
     expect(report.hourly[0]?.temperatureCelsius).toBe(19);
   });
 
@@ -59,7 +65,7 @@ describe('Open-Meteo adapter', () => {
       hourly: { ...openMeteoFixture().hourly, is_day: [1, 1, 1, 1, 2, 0, 0, 0] },
     },
   ])('rejects malformed or incompatible payloads', async (payload) => {
-    const http: HttpClient = { get: jest.fn().mockResolvedValue(payload) };
+    const http: HttpClient = { invalidate: jest.fn(), get: jest.fn().mockResolvedValue(payload) };
     await expect(
       createOpenMeteoProvider(http).getWeather(testLocation, signal),
     ).rejects.toMatchObject({ code: 'invalid-response', retryable: false });

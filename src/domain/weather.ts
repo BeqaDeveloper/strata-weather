@@ -27,7 +27,7 @@ export interface WeatherReport {
   readonly humidityPercent: number;
   readonly windSpeedKmh: number;
   readonly condition: WeatherCondition;
-  readonly isDay: boolean;
+  readonly isDay: boolean | null;
   readonly hourly: readonly HourlyWeather[];
   readonly attribution: string;
   readonly attributionUrl: string;
